@@ -50,3 +50,12 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+*.depend
+*.layout
+obj/*
+bin/*
+*.avi
+*.bak
+.config
+.config.old
+include/autoconf.h
