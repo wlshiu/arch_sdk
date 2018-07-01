@@ -1,0 +1,24 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+# Copyright (c) 2018 Wei-Lun Hsu
+# @author  Wei-Lun Hsu
+# @version 0.1
+#
+
+menu "Drivers"
+
+comment "Drivers"
+
+    config ENABLE_GPIO
+        bool "Enable GPIO"
+        ---help---
+            Enable GPIO
+
+    config ENABLE_TIMER
+        bool "Enable Timer"
+        ---help---
+            Enable Timer
+
+
+endmenu

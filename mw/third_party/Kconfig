@@ -6,10 +6,14 @@
 # @version 0.1
 #
 
-mainmenu "My SDK Configurations"
-    source app/Kconfig
-    source arch/Kconfig
-    source board/Kconfig
-    source drivers/Kconfig
-    source kernel/Kconfig
-    source mw/Kconfig
+menu "Middleware with 3-th Party"
+
+comment "Middleware with 3-th Party"
+
+    config ENABLE_LWIP
+        bool "Enable lwip"
+        ---help---
+            Enable lwip
+
+
+endmenu

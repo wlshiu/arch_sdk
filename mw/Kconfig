@@ -1,0 +1,32 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+# Copyright (c) 2018 Wei-Lun Hsu
+# @author  Wei-Lun Hsu
+# @version 0.1
+#
+
+menu "Middleware"
+
+comment "Middleware"
+
+    config ENABLE_IPC
+        bool "Enable IPC"
+        ---help---
+            Enable IPC
+
+        if ENABLE_IPC
+            menu "IPC Setting"
+                config MAX_QUEUE_NUM
+                    int "Max Queue Number"
+                    default "3"
+                    ---help---
+                        Max Queue Number
+
+            endmenu
+        endif
+
+    source mw/third_party/Kconfig
+
+endmenu
+

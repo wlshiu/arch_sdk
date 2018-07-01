@@ -1,0 +1,30 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+# Copyright (c) 2018 Wei-Lun Hsu
+# @author  Wei-Lun Hsu
+# @version 0.1
+#
+
+menu "Chip Dependent"
+
+comment "Chip Dependent"
+
+    choice
+        prompt "Chip Type"
+        default Chip_A
+
+    config Chip_A
+        bool "Chip A"
+        ---help---
+            Chip A
+
+    config Chip_B
+        bool "Chip B"
+        ---help---
+            Chip B
+
+    endchoice
+
+
+endmenu

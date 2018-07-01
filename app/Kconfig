@@ -1,0 +1,25 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+# Copyright (c) 2018 Wei-Lun Hsu
+# @author  Wei-Lun Hsu
+# @version 0.1
+#
+
+menu "Application Project"
+
+comment "Application Project"
+
+    choice
+        prompt "Project"
+        default project_1
+
+    config project_1
+        bool "project 1"
+        ---help---
+            project 1
+
+    endchoice
+
+
+endmenu

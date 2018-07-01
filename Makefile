@@ -169,14 +169,14 @@ help:
 
 
 clean:
-	-rm -rf $(KBUILD_OUTPUT)
+	@-rm -rf $(KBUILD_OUTPUT)
 
 
 distclean:
-	-rm -rf $(KBUILD_OUTPUT)
-	-rm -f $(srctree)/scripts/basic/.*.cmd $(srctree)/scripts/basic/*.exe
-	-rm -f $(srctree)/scripts/kconfig/.*.cmd $(srctree)/scripts/kconfig/*.o $(srctree)/scripts/kconfig/*.exe
-	-rm -f $(KCONFIG_CONFIG) $(KCONFIG_CONFIG).old include/autoconf.h
+	@-rm -rf $(KBUILD_OUTPUT)
+	@-rm -f $(srctree)/scripts/basic/.*.cmd $(srctree)/scripts/basic/*.exe
+	@-rm -f $(srctree)/scripts/kconfig/.*.cmd $(srctree)/scripts/kconfig/*.o $(srctree)/scripts/kconfig/*.exe
+	@-rm -f $(KCONFIG_CONFIG) $(KCONFIG_CONFIG).old include/autoconf.h
 
 
 
