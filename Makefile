@@ -26,12 +26,20 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
 	  else echo sh; fi ; fi)
 
-#### check config file exsit or not
+
+# $(warning tracing)
+.PHONY: _all clean distclean help
+
+###############
+## check config file exsit or not
 ifneq (,$(wildcard $(KCONFIG_CONFIG)))
+
+# $(info PWD='$(CURDIR)')
 include $(KCONFIG_CONFIG)
+
 else
 
-all: no_config_error
+_all: no_config_error
 .PHONY: no_config_error
 no_config_error:
 	@echo "No .config file. Please configure by 'make menuconfig'"
@@ -39,11 +47,13 @@ no_config_error:
 
 endif
 
-# first target
-.PHONY: all clean distclean help
-all:
 
-### Set the source tree
+###############
+## The all: target is the default when no target is given on the command line.
+_all: all
+
+###############
+## Set the source tree
 ifeq ($(KBUILD_SRC),)
     # building in the source tree
     srctree := .
@@ -65,7 +75,9 @@ TOPDIR := $(srctree)
 
 export srctree objtree VPATH TOPDIR
 
-### Set verbose to make
+
+###############
+## Set verbose to make
 Q := @
 KBUILD_VERBOSE = 0
 quiet=quiet_
@@ -94,8 +106,8 @@ endif
 
 export quiet Q KBUILD_VERBOSE
 
-
-#### Set output directory
+###############
+## Set output directory
 # OK, Make called in directory where kernel src resides
 # Do we want to locate output files in a separate directory?
 KBUILD_OUTPUT := output
@@ -107,7 +119,8 @@ endif
 
 $(if $(findstring clean,$(MAKECMDGOALS)),,$(shell mkdir -p $(KBUILD_OUTPUT)))
 
-# Host compiler setting
+###############
+## Host compiler setting
 HOSTCC       = gcc
 HOSTCXX      = g++
 HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer -std=gnu89
@@ -118,7 +131,6 @@ export HOSTCC HOSTCXX HOSTCXXFLAGS CONFIG_SHELL
 # We need some generic definitions (do not try to remake the file).
 scripts/Kbuild.include: ;
 include scripts/Kbuild.include
-
 
 # ===========================================================================
 # Rules shared between *config targets and build targets
@@ -143,9 +155,24 @@ ifneq ($(KBUILD_SRC),)
 	    $(srctree) $(objtree) $(VERSION) $(PATCHLEVEL)
 endif
 
+config-targets := 0
+ifneq ($(filter config %config,$(MAKECMDGOALS)),)
+    config-targets := 1
+endif
+
+
+
+ifeq ($(config-targets),1)
+# ===========================================================================
+# *config targets only - make sure prerequisites are updated, and descend
+# in scripts/kconfig to make the *config target
+
+###############
+## include CPU setting by Makefile if you necessary
 # -include $(srctree)/arch/$(SRCARCH)/Makefile
 # export KBUILD_DEFCONFIG KBUILD_KCONFIG
 
+.PHONY: config %config
 config: scripts_basic outputmakefile
 	$(Q)$(MAKE) $(build)=scripts/kconfig $@
 
@@ -153,6 +180,38 @@ config: scripts_basic outputmakefile
 %config: scripts_basic outputmakefile
 	$(Q)$(MAKE) $(build)=scripts/kconfig $@
 
+
+else
+
+# Read in config
+-include include/config/auto.conf
+
+# Read in dependencies to all Kconfig* files, make sure to run
+# oldconfig if changes are detected.
+-include include/config/auto.conf.cmd
+
+# To avoid any implicit rule to kick in, define an empty command
+$(KCONFIG_CONFIG) include/config/auto.conf.cmd: ;
+
+# If .config is newer than include/config/auto.conf, someone tinkered
+# with it and forgot to run make oldconfig.
+# if auto.conf.cmd is missing then we are probably in a cleaned tree so
+# we execute the config step to be sure to catch updated Kconfig files
+include/config/%.conf: $(KCONFIG_CONFIG) include/config/auto.conf.cmd
+	$(Q)$(MAKE) -f $(srctree)/Makefile silentoldconfig
+
+
+endif
+
+###############
+## the master TARGET
+.PHONY: all
+all:
+	@echo "first target"
+	@echo "do something"
+
+###############
+## help description
 help:
 	@echo  'Cleaning targets:'
 	@echo  '  clean		  - Remove most generated files but keep the config and'
@@ -167,7 +226,8 @@ help:
 	@echo  ''
 	@echo  'not ready.......'
 
-
+###############
+## clean option
 clean:
 	@-rm -rf $(KBUILD_OUTPUT)
 
@@ -177,8 +237,6 @@ distclean:
 	@-rm -f $(srctree)/scripts/basic/.*.cmd $(srctree)/scripts/basic/*.exe
 	@-rm -f $(srctree)/scripts/kconfig/.*.cmd $(srctree)/scripts/kconfig/*.o $(srctree)/scripts/kconfig/*.exe
 	@-rm -f $(KCONFIG_CONFIG) $(KCONFIG_CONFIG).old include/autoconf.h
-
-
-
+	@-rm -fr $(srctree)/include/generated $(srctree)/include/config
 
 
