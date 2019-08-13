@@ -6,7 +6,7 @@
 #
 
 
-.PHONY: build-modules menuconfig defconfig all build clean all_binaries
+.PHONY: build-modules menuconfig defconfig all build clean all_binaries tags TAGS cscope gtags
 all: all_binaries # other modules will add dependencies to 'all_binaries'
 
 # (the reason all_binaries is used instead of 'all' is so that the flash target
@@ -212,6 +212,24 @@ include $(srctree)/tools/scripts/project_config.mk
 # the name of the library is also a name of the module
 APP_LIBRARIES = $(patsubst -l%,%,$(filter -l%,$(LDFLAGS)))
 MODULES_LIBRARIES = $(filter $(notdir $(MODULES_PATHS_BUILDABLE)),$(APP_LIBRARIES))
+
+
+# SHELL used by kbuild
+# ---------------------------------------------------------------------------
+CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
+	  else if [ -x /bin/bash ]; then echo /bin/bash; \
+	  else echo sh; fi ; fi)
+
+export CONFIG_SHELL
+
+# Generate tags for editors
+# ---------------------------------------------------------------------------
+cmd = @$(echo-cmd) $(cmd_$(1))
+quiet_cmd_tags = GEN     $@
+      cmd_tags = $(CONFIG_SHELL) $(srctree)/tools/scripts/tags.sh $@
+
+tags TAGS cscope gtags:
+	$(call cmd,tags)
 
 # ELF depends on the library archive files for MODULES_LIBRARIES
 # the rules to build these are emitted as part of GenerateComponentTarget below
