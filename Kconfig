@@ -1,15 +1,22 @@
 #
 # For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-# Copyright (c) 2018 Wei-Lun Hsu
-# @author  Wei-Lun Hsu
-# @version 0.1
+# see doc/kconfig-language.txt.
 #
+mainmenu "VT SDK Configuration"
 
-mainmenu "My SDK Configurations"
-    source app/Kconfig
-    source arch/Kconfig
-    source board/Kconfig
-    source drivers/Kconfig
-    source kernel/Kconfig
-    source mw/Kconfig
+
+menu "SDK tool configuration"
+config TOOLPREFIX
+    string "Compiler toolchain path/prefix"
+    default "arm-none-eabi-"
+    help
+        The prefix/path that is used to call the toolchain. The default setting assumes
+        a crosstool-ng gcc setup that is in your PATH.
+
+endmenu
+
+source "$COMPONENT_KCONFIGS_PROJBUILD"
+
+
+
+
