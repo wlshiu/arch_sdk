@@ -4,15 +4,15 @@
 
 srctree := $(shell pwd)
 
-BUILD_PATH := $(srctree)/out
+BUILD_OUTPUT := $(srctree)/out
 
 ifeq ("$(origin O)", "command line")
-  BUILD_PATH := $(O)
+  BUILD_OUTPUT := $(O)
 endif
 
-BUILD_PATH := $(shell mkdir -p $(BUILD_PATH) && cd $(BUILD_PATH) && /bin/pwd)
+BUILD_OUTPUT := $(shell mkdir -p $(BUILD_OUTPUT) && cd $(BUILD_OUTPUT) && /bin/pwd)
 
-export srctree BUILD_PATH
+export srctree BUILD_OUTPUT
 
 include $(srctree)/tools/scripts/project.mk
 

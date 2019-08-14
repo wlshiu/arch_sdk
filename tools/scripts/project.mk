@@ -1,22 +1,28 @@
 #
 # Main Project Makefile
-# This Makefile is included directly from the user project Makefile in order to call the module.mk
-# makefiles of all modules (in a separate make process) to build all the libraries, then links them
+# This Makefile is included directly from the user project Makefile in order to call the component.mk
+# makefiles of all components (in a separate make process) to build all the libraries, then links them
 # together into the final file. If so, PWD is the project dir (we assume).
 #
 
+#
+# This makefile requires the environment variable IDF_PATH to be set to the top-level esp-idf directory
+# where this file is located.
+#
 
-.PHONY: build-modules menuconfig defconfig all build clean all_binaries tags TAGS cscope gtags
-all: all_binaries # other modules will add dependencies to 'all_binaries'
-
-# (the reason all_binaries is used instead of 'all' is so that the flash target
-# can build everything without triggering the per-module "to flash..."
-# output targets.)
+.PHONY: build-components menuconfig defconfig all build clean all_binaries check-submodules size tags TAGS cscope gtags
+all: all_binaries
+# see below for recipe of 'all' target
+#
+# # other components will add dependencies to 'all_binaries'. The
+# reason all_binaries is used instead of 'all' is so that the flash
+# target can build everything without triggering the per-component "to
+# flash..." output targets.)
 
 help:
 	@echo "Welcome to VT build system. Some useful make targets:"
 	@echo ""
-	@echo "make menuconfig - Configure IDF project"
+	@echo "make menuconfig - Configure project"
 	@echo "make defconfig - Set defaults for all new configuration options"
 	@echo ""
 	@echo "make all - Build app, bootloader, partition table"
@@ -25,196 +31,10 @@ help:
 	@echo "make app - Build just the app"
 	@echo "make app-clean - Clean just the app"
 	@echo ""
+	@echo "make tags/gtags/cscope - Generate tags for editors"
+	@echo ""
 
 
-# disable built-in make rules, makes debugging saner
-MAKEFLAGS +=-rR
-
-# Figure out PROJECT_PATH if not set
-ifeq ("$(PROJECT_PATH)","")
-# The path to the project: we assume the Makefile including this file resides
-# in the root of that directory.
-PROJECT_PATH := $(abspath $(dir $(firstword $(MAKEFILE_LIST))))
-export PROJECT_PATH
-endif
-
-############################################################
-$(warning PROJECT_PATH=$(PROJECT_PATH))
-############################################################
-
-# The directory where we put all objects/libraries/binaries. The project Makefile can
-# configure this if needed.
-## BUILD_DIR_BASE ?= $(PROJECT_PATH)/build
-BUILD_DIR_BASE ?= $(BUILD_PATH)
-
-
-# Module directories. These directories are searched for modules.
-# The project Makefile can override these module dirs, or define extra module directories.
-MODULE_DIRS ?= $(PROJECT_PATH)/apps/modules \
-				$(EXTRA_MODULE_DIRS) \
-				$(srctree)/middleware/third_party \
-				$(srctree)/middleware/vango \
-				$(srctree)/middleware/prebuild
-
-export MODULE_DIRS
-
-# The project Makefile can define a list of modules, but if it does not do this we just take
-# all available modules in the module dirs.
-ifeq ("$(MODULES)","")
-# Find all module names. The module names are the same as the
-# directories they're in, so /bla/modules/mymodule/ -> mymodule. We later use
-# the MODULE_DIRS bit to find back the module path.
-MODULES := $(foreach dir,$(MODULE_DIRS),$(wildcard $(dir)/*))
-MODULES := $(sort $(foreach comp,$(MODULES),$(lastword $(subst /, ,$(comp)))))
-endif
-export MODULES
-
-
-APP_LIST := $(sort $(wildcard $(srctree)/apps/*/Makefile))
-$(warning applist=$(APP_LIST))
-# Sources default to only "main"
-SRCDIRS ?= main
-
-# Here, we resolve and add all the modules and source paths into absolute paths.
-# If a module exists in multiple MODULE_DIRS, we take the first match.
-# WARNING: These directories paths must be generated WITHOUT a trailing / so we
-# can use $(notdir x) to get the module name.
-MODULES_PATHS := $(foreach comp,$(MODULES),$(firstword $(foreach dir,$(MODULE_DIRS),$(wildcard $(dir)/$(comp)))))
-MODULES_PATHS += $(abspath $(SRCDIRS))
-
-# A module is buildable if it has a module.mk makefile; we assume that a
-# 'make -C $(module dir) -f module.mk build' results in a lib$(modulename).a
-MODULES_PATHS_BUILDABLE := $(foreach cp,$(MODULES_PATHS),$(if $(wildcard $(cp)/module.mk),$(cp)))
-
-# Assemble global list of include dirs (MODULES_INCLUDES), and
-# LDFLAGS args (MODULES_LDFLAGS) supplied by each module.
-MODULES_INCLUDES :=
-MODULES_LDFLAGS :=
-#
-# Also add any inter-module dependencies for each module.
-
-# Extract a variable from a child make process
-#
-# $(1) - path to directory to invoke make in
-# $(2) - name of variable to print via the get_variable target (passed in GET_VARIABLE)
-#
-# needs 'sed' processing of stdout because make sometimes echoes other stuff on stdout,
-# even if asked not to.
-#
-# Debugging this? Replace $(shell with $(error and you'll see the full command as-run.
-define GetVariable
-$(shell "$(MAKE)" -s --no-print-directory -C $(1) -f module.mk get_variable PROJECT_PATH=$(PROJECT_PATH) GET_VARIABLE=$(2) | sed -En "s/^$(2)=(.+)/\1/p" )
-endef
-
-MODULES_INCLUDES := $(abspath $(foreach comp,$(MODULES_PATHS_BUILDABLE),$(addprefix $(comp)/, \
-	$(call GetVariable,$(comp),COMPONENT_ADD_INCLUDEDIRS))))
-
-#Also add project include path, for sdk includes
-MODULES_INCLUDES += $(BUILD_PATH)/include/
-export MODULES_INCLUDES
-
-#MODULES_LDFLAGS has a list of all flags that are needed to link the modules together. It's collected
-#in the same way as MODULES_INCLUDES is.
-MODULES_LDFLAGS := $(foreach comp,$(MODULES_PATHS_BUILDABLE), \
-	$(call GetVariable,$(comp),MODULE_ADD_LDFLAGS))
-export MODULES_LDFLAGS
-
-# Generate module dependency targets from dependencies lists
-# each module gains a target of its own <name>-build with dependencies
-# of the names of any other modules (-build) that need building first
-#
-# the actual targets (that invoke submakes) are generated below by
-# GenerateComponentTarget macro.
-define GenerateModuleDependencies
-# $(1) = module path
-.PHONY: $$(notdir $(1))
-$$(notdir $(1))-build: $(addsuffix -build,$(call GetVariable,$(1),MODULE_DEPENDS))
-endef
-$(foreach comp,$(MODULES_PATHS_BUILDABLE), $(eval $(call GenerateModuleDependencies,$(comp))))
-
-#Make sure submakes can also use this.
-export PROJECT_PATH
-
-#Include functionality common to both project & module
--include $(srctree)/tools/scripts/common.mk
-
-# Set default LDFLAGS
-
-LDFLAGS ?= -nostdlib \
-	-L$(srctree)/lib \
-	-L$(srctree)/ld \
-	$(addprefix -L$(BUILD_DIR_BASE)/,$(MODULES) $(SRCDIRS)) \
-	-u call_user_start_cpu0	\
-	-Wl,--gc-sections	\
-	-Wl,-static	\
-	-Wl,--start-group	\
-	$(MODULES_LDFLAGS) \
-	-lgcc \
-	-Wl,--end-group \
-	-Wl,-EL
-
-# Set default CPPFLAGS, CFLAGS, CXXFLAGS
-#
-# These are exported so that modules can use them when compiling.
-#
-# If you need your module to add CFLAGS/etc for it's own source compilation only, set CFLAGS += in your module's Makefile.
-#
-# If you need your module to add CFLAGS/etc globally for all source
-# files, set CFLAGS += in your module's Makefile.projbuild
-
-# CPPFLAGS used by an compile pass that uses the C preprocessor
-CPPFLAGS = -DESP_PLATFORM -Og -g3 -Wpointer-arith -Werror -Wno-error=unused-function -Wno-error=unused-but-set-variable \
-		-Wno-error=unused-variable -Wall -ffunction-sections -fdata-sections -mlongcalls -nostdlib -MMD -MP
-
-# C flags use by C only
-CFLAGS = $(CPPFLAGS) -std=gnu99 -g3 -fstrict-volatile-bitfields
-
-# CXXFLAGS uses by C++ only
-CXXFLAGS = $(CPPFLAGS) -Og -std=gnu++11 -g3 -fno-exceptions -fstrict-volatile-bitfields
-
-export CFLAGS CPPFLAGS CXXFLAGS
-
-#Set host compiler and binutils
-HOSTCC := $(CC)
-HOSTLD := $(LD)
-HOSTAR := $(AR)
-HOSTOBJCOPY := $(OBJCOPY)
-
-#Set target compiler. Defaults to whatever the user has
-#configured as prefix + yer olde gcc commands
-CC := $(call dequote,$(CONFIG_TOOLPREFIX))gcc
-CXX := $(call dequote,$(CONFIG_TOOLPREFIX))c++
-LD := $(call dequote,$(CONFIG_TOOLPREFIX))ld
-AR := $(call dequote,$(CONFIG_TOOLPREFIX))ar
-OBJCOPY := $(call dequote,$(CONFIG_TOOLPREFIX))objcopy
-export CC CXX LD AR OBJCOPY
-
-PYTHON=$(call dequote,$(CONFIG_PYTHON))
-
-# the app is the main executable built by the project
-APP_ELF:=$(BUILD_DIR_BASE)/$(PROJECT_NAME).elf
-APP_MAP:=$(APP_ELF:.elf=.map)
-APP_BIN:=$(APP_ELF:.elf=.bin)
-
-# Include any Makefile.projbuild file letting modules add
-# configuration at the project level
-define includeProjBuildMakefile
-$(if $(V),$(if $(wildcard $(1)/Makefile.projbuild),$(info including $(1)/Makefile.projbuild...)))
-COMPONENT_PATH := $(1)
--include $(1)/Makefile.projbuild
-endef
-$(foreach modulepath,$(MODULES_PATHS),$(eval $(call includeProjBuildMakefile,$(modulepath))))
-
-# once we know module paths, we can include the config
-include $(srctree)/tools/scripts/project_config.mk
-
-# A "module" library is any library in the LDFLAGS where
-# the name of the library is also a name of the module
-APP_LIBRARIES = $(patsubst -l%,%,$(filter -l%,$(LDFLAGS)))
-MODULES_LIBRARIES = $(filter $(notdir $(MODULES_PATHS_BUILDABLE)),$(APP_LIBRARIES))
-
-
-# SHELL used by kbuild
 # ---------------------------------------------------------------------------
 CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
@@ -222,62 +42,435 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 export CONFIG_SHELL
 
-# Generate tags for editors
+# The directory where we put all objects/libraries/binaries. The project Makefile can
+# configure this if needed.
+BUILD_DIR_BASE ?= $(BUILD_OUTPUT)
+export BUILD_DIR_BASE
+
+# list apps
 # ---------------------------------------------------------------------------
+# ref: current_dir := $(notdir $(patsubst %/,%,$(dir $(mkfile_path)))
+APPS := $(dir $(sort $(wildcard $(srctree)/apps/*/Makefile)))
+APPS := $(notdir $(foreach app,$(APPS),$(lastword $(subst /, ,$(app)))))
+export APPS
+
 cmd = @$(echo-cmd) $(cmd_$(1))
-quiet_cmd_tags = GEN     $@
-      cmd_tags = $(CONFIG_SHELL) $(srctree)/tools/scripts/tags.sh $@
+export cmd
 
-tags TAGS cscope gtags:
-	$(call cmd,tags)
+# Set variables common to both project & component
+# ---------------------------------------------------------------------------
+include $(srctree)/tools/scripts/common.mk
+PROJECT_PATH := $(addsuffix $(strip $(call dequote,$(CONFIG_TARGET_APP_PROJECT))),$(srctree)/apps/)
+export PROJECT_PATH
+# ---------------------------------------------------------------------------
 
-# ELF depends on the library archive files for MODULES_LIBRARIES
+# dependency checks
+ifndef MAKE_RESTARTS
+ifeq ("$(filter 4.% 3.81 3.82,$(MAKE_VERSION))","")
+$(warning "Build system only supports GNU Make versions 3.81 or newer. You may see unexpected results with other Makes.")
+endif
+endif
+
+# disable built-in make rules, makes debugging saner
+MAKEFLAGS_OLD := $(MAKEFLAGS)
+MAKEFLAGS +=-rR
+
+# Default path to the project: we assume the Makefile including this file
+# is in the project directory
+ifndef PROJECT_PATH
+PROJECT_PATH := $(abspath $(dir $(firstword $(MAKEFILE_LIST))))
+export PROJECT_PATH
+endif
+
+# A list of the "common" makefiles, to use as a target dependency
+COMMON_MAKEFILES := $(abspath $(srctree)/tools/scripts/project.mk $(srctree)/tools/scripts/common.mk $(srctree)/tools/scripts/component_wrapper.mk)
+export COMMON_MAKEFILES
+
+# The directory where we put all objects/libraries/binaries. The project Makefile can
+# configure this if needed.
+# BUILD_DIR_BASE ?= $(PROJECT_PATH)/build
+## export BUILD_DIR_BASE
+
+# Component directories. These directories are searched for components.
+# The project Makefile can override these component dirs, or define extra component directories.
+COMPONENT_DIRS ?= $(PROJECT_PATH)/modules \
+				$(EXTRA_MODULE_DIRS) \
+				$(srctree)/middleware/third_party \
+				$(srctree)/middleware/vango \
+				$(srctree)/middleware/prebuild
+
+export COMPONENT_DIRS
+
+# Source directories of the project itself (a special, project-specific component.) Defaults to only "main".
+SRCDIRS ?= main
+
+# The project Makefile can define a list of components, but if it does not do this we just take
+# all available components in the component dirs.
+ifndef COMPONENTS
+# Find all component names. The component names are the same as the
+# directories they're in, so /bla/components/mycomponent/ -> mycomponent. We then use
+# COMPONENT_DIRS to build COMPONENT_PATHS with the full path to each component.
+COMPONENTS := $(foreach dir,$(COMPONENT_DIRS),$(wildcard $(dir)/*))
+COMPONENTS := $(sort $(foreach comp,$(COMPONENTS),$(lastword $(subst /, ,$(comp)))))
+endif
+export COMPONENTS
+
+# Resolve all of COMPONENTS into absolute paths in COMPONENT_PATHS.
+#
+# If a component name exists in multiple COMPONENT_DIRS, we take the first match.
+#
+# NOTE: These paths must be generated WITHOUT a trailing / so we
+# can use $(notdir x) to get the component name.
+COMPONENT_PATHS := $(foreach comp,$(COMPONENTS),$(firstword $(foreach dir,$(COMPONENT_DIRS),$(wildcard $(dir)/$(comp)))))
+COMPONENT_PATHS += $(abspath $(SRCDIRS))
+
+# A component is buildable if it has a component.mk makefile in it
+COMPONENT_PATHS_BUILDABLE := $(foreach cp,$(COMPONENT_PATHS),$(if $(wildcard $(cp)/component.mk),$(cp)))
+
+# If TESTS_ALL set to 1, set TEST_COMPONENTS to all components
+ifeq ($(TESTS_ALL),1)
+TEST_COMPONENTS := $(COMPONENTS)
+endif
+
+# If TEST_COMPONENTS is set, create variables for building unit tests
+ifdef TEST_COMPONENTS
+# TODO: unit-test
+override TEST_COMPONENTS := $(foreach comp,$(TEST_COMPONENTS),$(wildcard $(COMPONENT_DIRS)/$(comp)/test))
+TEST_COMPONENT_PATHS := $(TEST_COMPONENTS)
+TEST_COMPONENT_NAMES :=  $(foreach comp,$(TEST_COMPONENTS),$(lastword $(subst /, ,$(dir $(comp))))_test)
+endif
+
+# Initialise project-wide variables which can be added to by
+# each component.
+#
+# These variables are built up via the component_project_vars.mk
+# generated makefiles (one per component).
+#
+# See docs/build-system.rst for more details.
+COMPONENT_INCLUDES :=
+COMPONENT_LDFLAGS :=
+COMPONENT_SUBMODULES :=
+
+# COMPONENT_PROJECT_VARS is the list of component_project_vars.mk generated makefiles
+# for each component.
+#
+# Including $(COMPONENT_PROJECT_VARS) builds the COMPONENT_INCLUDES,
+# COMPONENT_LDFLAGS variables and also targets for any inter-component
+# dependencies.
+#
+# See the component_project_vars.mk target in component_wrapper.mk
+COMPONENT_PROJECT_VARS := $(addsuffix /component_project_vars.mk,$(notdir $(COMPONENT_PATHS_BUILDABLE) ) $(TEST_COMPONENT_NAMES))
+COMPONENT_PROJECT_VARS := $(addprefix $(BUILD_DIR_BASE)/,$(COMPONENT_PROJECT_VARS))
+# this line is -include instead of include to prevent a spurious error message on make 3.81
+-include $(COMPONENT_PROJECT_VARS)
+
+# Also add top-level project include path, for top-level includes
+COMPONENT_INCLUDES += $(abspath $(BUILD_DIR_BASE)/include/)
+
+export COMPONENT_INCLUDES
+
+# Set variables common to both project & component
+# include $(srctree)/tools/scripts/common.mk
+
+
+all:
+ifdef CONFIG_SECURE_BOOT_ENABLED
+	@echo "(Secure boot enabled, so bootloader not flashed automatically. See 'make bootloader' output)"
+ifndef CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES
+	@echo "App built but not signed. Sign app & partition data before flashing, via espsecure.py:"
+	@echo "espsecure.py sign_data --keyfile KEYFILE $(APP_BIN)"
+	@echo "espsecure.py sign_data --keyfile KEYFILE $(PARTITION_TABLE_BIN)"
+endif
+	@echo "To flash app & partition table, run 'make flash' or:"
+else
+	@echo "To flash all build output, run 'make flash' or:"
+endif
+	@echo $(ESPTOOLPY_WRITE_FLASH) $(ESPTOOL_ALL_FLASH_ARGS)
+
+
+# TODO: vresion
+# Git version of ESP-IDF (of the form v1.0-285-g5c4f707)
+# IDF_VER := $(shell git -C $(IDF_PATH) describe)
+
+# Set default LDFLAGS
+
+LDFLAGS ?= -nostdlib \
+	$(addprefix -L$(BUILD_DIR_BASE)/,$(COMPONENTS) $(TEST_COMPONENT_NAMES) $(SRCDIRS) ) \
+	-u call_user_start_cpu0	\
+	$(EXTRA_LDFLAGS) \
+	-Wl,--gc-sections	\
+	-Wl,-static	\
+	-Wl,--start-group	\
+	$(COMPONENT_LDFLAGS) \
+	-lgcc \
+	-lstdc++ \
+	-Wl,--end-group \
+	-Wl,-EL
+
+# Set default CPPFLAGS, CFLAGS, CXXFLAGS
+# These are exported so that components can use them when compiling.
+# If you need your component to add CFLAGS/etc for it's own source compilation only, set CFLAGS += in your component's Makefile.
+# If you need your component to add CFLAGS/etc globally for all source
+#  files, set CFLAGS += in your component's Makefile.projbuild
+# If you need to set CFLAGS/CPPFLAGS/CXXFLAGS at project level, set them in application Makefile
+#  before including project.mk. Default flags will be added before the ones provided in application Makefile.
+
+# CPPFLAGS used by C preprocessor
+# If any flags are defined in application Makefile, add them at the end.
+CPPFLAGS := -MMD -MP $(CPPFLAGS) $(EXTRA_CPPFLAGS)
+
+# Warnings-related flags relevant both for C and C++
+COMMON_WARNING_FLAGS = -Wall -Werror=all \
+	-Wno-error=unused-function \
+	-Wno-error=unused-but-set-variable \
+	-Wno-error=unused-variable \
+	-Wno-error=deprecated-declarations \
+	-Wextra \
+	-Wno-unused-parameter -Wno-sign-compare
+
+# Flags which control code generation and dependency generation, both for C and C++
+COMMON_FLAGS = \
+	-ffunction-sections -fdata-sections \
+	-fstrict-volatile-bitfields \
+	-mlongcalls \
+	-nostdlib
+
+# Optimization flags are set based on menuconfig choice
+ifneq ("$(CONFIG_OPTIMIZATION_LEVEL_RELEASE)","")
+OPTIMIZATION_FLAGS = -Os
+CPPFLAGS += -DNDEBUG
+else
+OPTIMIZATION_FLAGS = -Og
+endif
+
+# Enable generation of debugging symbols
+OPTIMIZATION_FLAGS += -ggdb
+
+# List of flags to pass to C compiler
+# If any flags are defined in application Makefile, add them at the end.
+CFLAGS := $(strip \
+	-std=gnu99 \
+	$(OPTIMIZATION_FLAGS) \
+	$(COMMON_FLAGS) \
+	$(COMMON_WARNING_FLAGS) -Wno-old-style-declaration \
+	$(CFLAGS) \
+	$(EXTRA_CFLAGS))
+
+# List of flags to pass to C++ compiler
+# If any flags are defined in application Makefile, add them at the end.
+CXXFLAGS := $(strip \
+	-std=gnu++11 \
+	-fno-exceptions \
+	-fno-rtti \
+	$(OPTIMIZATION_FLAGS) \
+	$(COMMON_FLAGS) \
+	$(COMMON_WARNING_FLAGS) \
+	$(CXXFLAGS) \
+	$(EXTRA_CXXFLAGS))
+
+export CFLAGS CPPFLAGS CXXFLAGS
+
+# Set host compiler and binutils
+HOSTCC := $(CC)
+HOSTCXX := g++
+HOSTLD := $(LD)
+HOSTAR := $(AR)
+HOSTOBJCOPY := $(OBJCOPY)
+HOSTSIZE := $(SIZE)
+export HOSTCC HOSTLD HOSTAR HOSTOBJCOPY SIZE
+
+# Set target compiler. Defaults to whatever the user has
+# configured as prefix + ye olde gcc commands
+CC := $(call dequote,$(CONFIG_TOOLPREFIX))gcc
+CXX := $(call dequote,$(CONFIG_TOOLPREFIX))c++
+LD := $(call dequote,$(CONFIG_TOOLPREFIX))ld
+AR := $(call dequote,$(CONFIG_TOOLPREFIX))ar
+OBJCOPY := $(call dequote,$(CONFIG_TOOLPREFIX))objcopy
+SIZE := $(call dequote,$(CONFIG_TOOLPREFIX))size
+export CC CXX LD AR OBJCOPY SIZE
+
+# TODO: python
+# PYTHON=$(call dequote,$(CONFIG_PYTHON))
+
+# the app is the main executable built by the project
+APP_ELF:=$(BUILD_DIR_BASE)/$(PROJECT_NAME).elf
+APP_MAP:=$(APP_ELF:.elf=.map)
+APP_BIN:=$(APP_ELF:.elf=.bin)
+
+# Include any Makefile.projbuild file letting components add
+# configuration at the project level
+define includeProjBuildMakefile
+$(if $(V),$(if $(wildcard $(1)/Makefile.projbuild),$(info including $(1)/Makefile.projbuild...)))
+COMPONENT_PATH := $(1)
+-include $(1)/Makefile.projbuild
+endef
+$(foreach componentpath,$(COMPONENT_PATHS),$(eval $(call includeProjBuildMakefile,$(componentpath))))
+
+
+# once we know component paths, we can include the config generation targets
+#
+# (bootloader build doesn't need this, config is exported from top-level)
+ifndef IS_BOOTLOADER_BUILD
+include $(srctree)/tools/scripts/project_config.mk
+endif
+
+# A "component" library is any library in the LDFLAGS where
+# the name of the library is also a name of the component
+APP_LIBRARIES = $(patsubst -l%,%,$(filter -l%,$(LDFLAGS)))
+COMPONENT_LIBRARIES = $(filter $(notdir $(COMPONENT_PATHS_BUILDABLE)) $(TEST_COMPONENT_NAMES),$(APP_LIBRARIES))
+
+# ELF depends on the library archive files for COMPONENT_LIBRARIES
 # the rules to build these are emitted as part of GenerateComponentTarget below
-$(APP_ELF): $(foreach libmodule,$(MODULES_LIBRARIES),$(BUILD_DIR_BASE)/$(libmodule)/lib$(libmodule).a)
+#
+# also depends on additional dependencies (linker scripts & binary libraries)
+# stored in COMPONENT_LINKER_DEPS, built via component.mk files' COMPONENT_ADD_LINKER_DEPS variable
+$(APP_ELF): $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/lib$(libcomp).a) $(COMPONENT_LINKER_DEPS)
 	$(summary) LD $(notdir $@)
-	$(Q) $(CC) $(LDFLAGS) -o $@ -Wl,-Map=$(APP_MAP)
+	$(CC) $(LDFLAGS) -o $@ -Wl,-Map=$(APP_MAP)
 
 # Generation of $(APP_BIN) from $(APP_ELF) is added by the esptool
-# module's Makefile.projbuild
+# component's Makefile.projbuild
 app: $(APP_BIN)
+ifeq ("$(CONFIG_SECURE_BOOT_ENABLED)$(CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES)","y") # secure boot enabled, but remote sign app image
+	@echo "App built but not signed. Signing step via espsecure.py:"
+	@echo "espsecure.py sign_data --keyfile KEYFILE $(APP_BIN)"
+	@echo "Then flash app command is:"
+	@echo $(ESPTOOLPY_WRITE_FLASH) $(CONFIG_APP_OFFSET) $(APP_BIN)
+else
 	@echo "App built. Default flash app command is:"
-	@echo $(ESPTOOLPY_WRITE_FLASH) $(CONFIG_APP_OFFSET) $(APP_BIN) #########################################
+	@echo $(ESPTOOLPY_WRITE_FLASH) $(CONFIG_APP_OFFSET) $(APP_BIN)
+endif
 
 all_binaries: $(APP_BIN)
 
 $(BUILD_DIR_BASE):
 	mkdir -p $(BUILD_DIR_BASE)
 
-define GenerateModulePhonyTarget
-# $(1) - path to module dir
-# $(2) - target to generate (build, clean)
-.PHONY: $(notdir $(1))-$(2)
-$(notdir $(1))-$(2): | $(BUILD_DIR_BASE)/$(notdir $(1))
-	@+$(MAKE) -C $(BUILD_DIR_BASE)/$(notdir $(1)) -f $(1)/module.mk COMPONENT_BUILD_DIR=$(BUILD_DIR_BASE)/$(notdir $(1)) $(2)
+# Macro for the recursive sub-make for each component
+# $(1) - component directory
+# $(2) - component name only
+#
+# Is recursively expanded by the GenerateComponentTargets macro
+define ComponentMake
++$(MAKE) -C $(BUILD_DIR_BASE)/$(2) -f $(srctree)/tools/scripts/component_wrapper.mk COMPONENT_MAKEFILE=$(1)/component.mk COMPONENT_NAME=$(2)
 endef
 
-define GenerateModuleTargets
-# $(1) - path to module dir
-$(BUILD_DIR_BASE)/$(notdir $(1)):
-	@mkdir -p $(BUILD_DIR_BASE)/$(notdir $(1))
+# Generate top-level component-specific targets for each component
+# $(1) - path to component dir
+# $(2) - name of component
+#
+define GenerateComponentTargets
+.PHONY: $(2)-build $(2)-clean
 
-# tell make it can build any module's library by invoking the recursive -build target
-# (this target exists for all modules even ones which don't build libraries, but it's
-# only invoked for the targets whose libraries appear in MODULES_LIBRARIES and hence the
+$(2)-build: check-submodules
+	$(call ComponentMake,$(1),$(2)) build
+
+$(2)-clean:
+	$(call ComponentMake,$(1),$(2)) clean
+
+$(BUILD_DIR_BASE)/$(2):
+	@mkdir -p $(BUILD_DIR_BASE)/$(2)
+
+# tell make it can build any component's library by invoking the -build target
+# (this target exists for all components even ones which don't build libraries, but it's
+# only invoked for the targets whose libraries appear in COMPONENT_LIBRARIES and hence the
 # APP_ELF dependencies.)
-$(BUILD_DIR_BASE)/$(notdir $(1))/lib$(notdir $(1)).a: $(notdir $(1))-build
+$(BUILD_DIR_BASE)/$(2)/lib$(2).a: $(2)-build
 	$(details) "Target '$$^' responsible for '$$@'" # echo which build target built this file
+
+# add a target to generate the component_project_vars.mk files that
+# are used to inject variables into project make pass (see matching
+# component_project_vars.mk target in component_wrapper.mk).
+#
+# If any component_project_vars.mk file is out of date, the make
+# process will call this target to rebuild it and then restart.
+#
+$(BUILD_DIR_BASE)/$(2)/component_project_vars.mk: $(1)/component.mk $(COMMON_MAKEFILES) $(SDKCONFIG_MAKEFILE) | $(BUILD_DIR_BASE)/$(2)
+	$(call ComponentMake,$(1),$(2)) component_project_vars.mk
 endef
 
-$(foreach module,$(MODULES_PATHS_BUILDABLE),$(eval $(call GenerateModuleTargets,$(module))))
+$(foreach component,$(COMPONENT_PATHS_BUILDABLE),$(eval $(call GenerateComponentTargets,$(component),$(notdir $(component)))))
+$(foreach component,$(TEST_COMPONENT_PATHS),$(eval $(call GenerateComponentTargets,$(component),$(lastword $(subst /, ,$(dir $(component))))_test)))
 
-$(foreach module,$(MODULES_PATHS_BUILDABLE),$(eval $(call GenerateModulePhonyTarget,$(module),build)))
-$(foreach module,$(MODULES_PATHS_BUILDABLE),$(eval $(call GenerateModulePhonyTarget,$(module),clean)))
-
-app-clean: $(addsuffix -clean,$(notdir $(MODULES_PATHS_BUILDABLE)))
+app-clean: $(addsuffix -clean,$(notdir $(COMPONENT_PATHS_BUILDABLE)))
 	$(summary) RM $(APP_ELF)
-	$(Q) rm -f $(APP_ELF) $(APP_BIN) $(APP_MAP)
+	rm -f $(APP_ELF) $(APP_BIN) $(APP_MAP)
 
-clean: app-clean
+size: $(APP_ELF)
+	$(SIZE) $(APP_ELF)
+
+# Generate tags for editors
+# ---------------------------------------------------------------------------
+quiet_cmd_tags = GEN     $@
+      cmd_tags = $(CONFIG_SHELL) $(srctree)/tools/scripts/tags.sh $@
+
+tags TAGS cscope gtags:
+	$(call cmd,tags)
+# ---------------------------------------------------------------------------
+
+# NB: this ordering is deliberate (app-clean before config-clean),
+# so config remains valid during all component clean targets
+config-clean: app-clean
+clean: config-clean
+
+# phony target to check if any git submodule listed in COMPONENT_SUBMODULES are missing
+# or out of date, and exit if so. Components can add paths to this variable.
+#
+# This only works for components inside IDF_PATH
+
+# check-submodules:
+
+# # Generate a target to check this submodule
+# # $(1) - submodule directory, relative to IDF_PATH
+# define GenerateSubmoduleCheckTarget
+# check-submodules: $(IDF_PATH)/$(1)/.git
+# $(IDF_PATH)/$(1)/.git:
+# 	@echo "WARNING: Missing submodule $(1)..."
+# 	[ -d ${IDF_PATH}/.git ] || ( echo "ERROR: esp-idf must be cloned from git to work."; exit 1)
+# 	[ -x $(which git) ] || ( echo "ERROR: Need to run 'git submodule init $(1)' in esp-idf root directory."; exit 1)
+# 	@echo "Attempting 'git submodule update --init $(1)' in esp-idf root directory..."
+# 	cd ${IDF_PATH} && git submodule update --init $(1)
+#
+# # Parse 'git submodule status' output for out-of-date submodule.
+# # Status output prefixes status line with '+' if the submodule commit doesn't match
+# ifneq ("$(shell cd ${IDF_PATH} && git submodule status $(1) | grep '^+')","")
+# $$(info WARNING: esp-idf git submodule $(1) may be out of date. Run 'git submodule update' in IDF_PATH dir to update.)
+# endif
+# endef
+
+# filter/subst in expression ensures all submodule paths begin with $(IDF_PATH), and then strips that prefix
+# so the argument is suitable for use with 'git submodule' commands
+# $(foreach submodule,$(subst $(IDF_PATH)/,,$(filter $(IDF_PATH)/%,$(COMPONENT_SUBMODULES))),$(eval $(call GenerateSubmoduleCheckTarget,$(submodule))))
 
 
+# Check toolchain version using the output of xtensa-esp32-elf-gcc --version command.
+# The output normally looks as follows
+#     xtensa-esp32-elf-gcc (crosstool-NG crosstool-ng-1.22.0-59-ga194053) 4.8.5
+# The part in brackets is extracted into TOOLCHAIN_COMMIT_DESC variable,
+# the part after the brackets is extracted into TOOLCHAIN_GCC_VER.
+## ifdef CONFIG_TOOLPREFIX
+## ifndef MAKE_RESTARTS
+## TOOLCHAIN_COMMIT_DESC := $(shell $(CC) --version | sed -E -n 's|xtensa-esp32-elf-gcc.*\ \(([^)]*).*|\1|gp')
+## TOOLCHAIN_GCC_VER := $(shell $(CC) --version | sed -E -n 's|xtensa-esp32-elf-gcc.*\ \(.*\)\ (.*)|\1|gp')
+##
+## # Officially supported version(s)
+## SUPPORTED_TOOLCHAIN_COMMIT_DESC := crosstool-NG crosstool-ng-1.22.0-61-gab8375a
+## SUPPORTED_TOOLCHAIN_GCC_VERSIONS := 5.2.0
+##
+## ifdef TOOLCHAIN_COMMIT_DESC
+## ifneq ($(TOOLCHAIN_COMMIT_DESC), $(SUPPORTED_TOOLCHAIN_COMMIT_DESC))
+## $(info WARNING: Toolchain version is not supported: $(TOOLCHAIN_COMMIT_DESC))
+## $(info Expected to see version: $(SUPPORTED_TOOLCHAIN_COMMIT_DESC))
+## $(info Please check ESP-IDF setup instructions and update the toolchain, or proceed at your own risk.)
+## endif
+## ifeq (,$(findstring $(TOOLCHAIN_GCC_VER), $(SUPPORTED_TOOLCHAIN_GCC_VERSIONS)))
+## $(info WARNING: Compiler version is not supported: $(TOOLCHAIN_GCC_VER))
+## $(info Expected to see version(s): $(SUPPORTED_TOOLCHAIN_GCC_VERSIONS))
+## $(info Please check ESP-IDF setup instructions and update the toolchain, or proceed at your own risk.)
+## endif
+## else
+## $(info WARNING: Failed to find Xtensa toolchain, may need to alter PATH or set one in the configuration menu)
+## endif # TOOLCHAIN_COMMIT_DESC
+##
+## endif #MAKE_RESTARTS
+## endif #CONFIG_TOOLPREFIX

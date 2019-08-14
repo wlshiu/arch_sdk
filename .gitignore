@@ -97,3 +97,6 @@ bin/*
 **/JLinkLog.txt
 **/toolchain.env
 **/.config*
+**/Kconfig.app
+sdkconfig
+out/*

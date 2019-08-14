@@ -1,12 +1,19 @@
-# Functionality common to both top-level project makefile
-# and component makefiles
+# Functionality common to both top-level project makefile (project.mk)
+# and component makefiles (component_wrapper.mk)
 #
 
-# Include project config file, if it exists.
+# Include project config makefile, if it exists.
 #
-# (Note that we only rebuild auto.conf automatically for some targets,
-# see project_config.mk for details.)
--include $(BUILD_PATH)/include/config/auto.conf
+# (Note that we only rebuild this makefile automatically for some
+# targets, see project_config.mk for details.)
+SDKCONFIG_MAKEFILE ?= $(abspath $(BUILD_DIR_BASE)/include/config/auto.conf)
+include $(SDKCONFIG_MAKEFILE)
+export SDKCONFIG_MAKEFILE  # sub-makes (like bootloader) will reuse this path
+
+# BATCH_BUILD flag disables interactive terminal features, defaults to verbose build
+ifdef BATCH_BUILD
+V ?= 1
+endif
 
 #Handling of V=1/VERBOSE=1 flag
 #
@@ -14,41 +21,55 @@
 # if V is unset or not 1, $(summary) echoes a summary and $(details) does nothing
 V ?= $(VERBOSE)
 ifeq ("$(V)","1")
-Q :=
 summary := @true
 details := @echo
 else
-Q := @
 summary := @echo
 details := @true
+
+# disable echoing of commands, directory names
+MAKEFLAGS += --silent
 endif
-
-###############################################################################
-### we don't use submodule
-# Pseudo-target to handle the case where submodules need to be
-# re-initialised.
-#
-# $(eval $(call SubmoduleRequiredForFiles,FILENAMES)) to create a target that
-# automatically runs 'git submodule update --init' if those files
-# are missing, and fails if this is not possible.
-define SubmoduleRequiredForFiles
-$(1):
-	@echo "WARNING: Missing submodule for $$@..."
-	$(Q) [ -d ${srctree}/.git ] || ( echo "ERROR: esp-idf must be cloned from git to work."; exit 1)
-	$(Q) [ -x $(which git) ] || ( echo "ERROR: Need to run 'git submodule --init' in esp-idf root directory."; exit 1)
-	@echo "Attempting 'git submodule update --init' in esp-idf root directory..."
-	cd ${srctree} && git submodule update --init
-endef
-
-###############################################################################
 
 # General make utilities
 
 # convenience variable for printing an 80 asterisk wide separator line
 SEPARATOR:="*******************************************************************************"
 
-# macro to remove quotes from an argument, ie $(call dequote (CONFIG_BLAH))
+# macro to remove quotes from an argument, ie $(call dequote,$(CONFIG_BLAH))
 define dequote
 $(subst ",,$(1))
 endef
 # " comment kept here to keep syntax highlighting happy
+
+
+# macro to keep an absolute path as-is, but resolve a relative path
+# against a particular parent directory
+#
+# $(1) path to resolve
+# $(2) directory to resolve non-absolute path against
+#
+# Path and directory don't have to exist (definition of a "relative
+# path" is one that doesn't start with /)
+#
+# $(2) can contain a trailing forward slash or not, result will not
+# double any path slashes.
+#
+# example $(call resolvepath,$(CONFIG_PATH),$(CONFIG_DIR))
+define resolvepath
+$(foreach dir,$(1),$(if $(filter /%,$(dir)),$(dir),$(subst //,/,$(2)/$(dir))))
+endef
+
+
+# macro to include a target only if it's on the list of targets that make
+# was invoked with
+#
+# This allows you to have something like an "order-only phony prerequisite",
+# ie a prerequisite that determines an order phony targets have to run in.
+#
+# Because normal order-only prerequisites don't work with phony targets.
+#
+# example $(call prereq_if_explicit,erase_flash)
+define prereq_if_explicit
+$(filter $(1),$(MAKECMDGOALS))
+endef

@@ -154,6 +154,7 @@ docscope()
 
 dogtags()
 {
+    (echo \-k; echo \-q; all_target_sources) > cscope.files
 	all_target_sources | gtags -i -f -
 }
 
@@ -317,7 +318,6 @@ xtags()
 # 	done
 # fi
 
-echo -e "dddddddddddddddd"
 remove_structs=
 case "$1" in
 	"cscope")
