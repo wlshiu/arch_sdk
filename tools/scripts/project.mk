@@ -10,7 +10,7 @@
 # where this file is located.
 #
 
-.PHONY: build-components menuconfig defconfig all build clean all_binaries check-submodules size tags TAGS cscope gtags
+.PHONY: build-components menuconfig defconfig all build clean distclean all_binaries check-submodules size tags TAGS cscope gtags
 all: all_binaries
 # see below for recipe of 'all' target
 #
@@ -20,19 +20,23 @@ all: all_binaries
 # flash..." output targets.)
 
 help:
+	@echo "----------------------------------------------------------------------"
 	@echo "Welcome to VT build system. Some useful make targets:"
 	@echo ""
-	@echo "make menuconfig - Configure project"
-	@echo "make defconfig - Set defaults for all new configuration options"
+	@echo "  make menuconfig            - Configure project"
+	@echo "  make defconfig             - Set defaults for all new configuration options"
 	@echo ""
-	@echo "make all - Build app, bootloader, partition table"
-	@echo "make clean - Remove all build output"
+	@echo "  make all                   - Build app, bootloader, partition table"
+	@echo "  make clean                 - Remove most generated files but keep the config and"
+	@echo "                               enough build support to build external modules"
+	@echo "  make distclean             - Remove all generated files + config + various backup files"
 	@echo ""
-	@echo "make app - Build just the app"
-	@echo "make app-clean - Clean just the app"
+	@echo "  make app                   - Build just the app"
+	@echo "  make app-clean             - Clean just the app"
 	@echo ""
-	@echo "make tags/gtags/cscope - Generate tags for editors"
+	@echo "  make tags/gtags/cscope     - Generate tags for editors"
 	@echo ""
+	@echo "----------------------------------------------------------------------"
 
 
 # ---------------------------------------------------------------------------
@@ -412,6 +416,7 @@ tags TAGS cscope gtags:
 # so config remains valid during all component clean targets
 config-clean: app-clean
 clean: config-clean
+distclean: clean
 
 # phony target to check if any git submodule listed in COMPONENT_SUBMODULES are missing
 # or out of date, and exit if so. Components can add paths to this variable.

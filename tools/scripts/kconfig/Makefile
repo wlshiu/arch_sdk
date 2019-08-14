@@ -3,7 +3,7 @@
 # These targets are used from top-level makefile
 
 PHONY += xconfig gconfig menuconfig config silentoldconfig \
-	localmodconfig localyesconfig clean
+	localmodconfig localyesconfig distclean
 
 ifdef KBUILD_KCONFIG
 Kconfig := $(KBUILD_KCONFIG)
@@ -307,5 +307,7 @@ zconf.hash.c: zconf.gperf
 zconf.tab.c: zconf.y
 	bison -t -l -p zconf -o zconf.tab.c zconf.y
 
-clean: 
+clean:
+
+distclean:
 	rm -f $(clean-files)

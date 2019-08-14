@@ -94,8 +94,12 @@ defconfig:
 menuconfig:
 endif
 
-.PHONY: config-clean defconfig menuconfig
+.PHONY: config-clean distclean defconfig menuconfig
 config-clean:
 	$(summary RM CONFIG)
-	$(MAKE) -C $(KCONFIG_TOOL_DIR) clean
 	rm -rf $(BUILD_DIR_BASE)/include/config $(BUILD_DIR_BASE)/include/sdkconfig.h
+
+distclean:
+	rm -fr $(BUILD_OUTPUT) $(srctree)/apps/Kconfig.app
+	$(MAKE) -C $(KCONFIG_TOOL_DIR) distclean
+
