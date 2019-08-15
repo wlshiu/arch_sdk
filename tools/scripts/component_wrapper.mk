@@ -9,7 +9,7 @@
 # CWD is the build directory of the component.
 
 ifndef PROJECT_PATH
-$(error Make was invoked from $(CURDIR). However please do not run make from the sdk or a component directory; invoke make from the project directory. See the ESP-IDF README for details.)
+$(error Make was invoked from $(CURDIR). However please do not run make from the sdk or a component directory; invoke make from the project directory.)
 endif
 
 
@@ -111,7 +111,7 @@ endef
 # Makefile.projbuild for your component (see docs/build-system.rst for
 # more.)
 component_project_vars.mk::
-	$(details) "Building component project variables list $(abspath $@)"
+	$(details) $(YELLOW) "Building component project variables list $(abspath $@)" $(NC)
 	@echo '# Automatically generated build file. Do not edit.' > $@
 	@echo 'COMPONENT_INCLUDES += $(call MakeVariablePath,$(addprefix $(COMPONENT_PATH)/,$(COMPONENT_ADD_INCLUDEDIRS)))' >> $@
 	@echo 'COMPONENT_LDFLAGS += $(call MakeVariablePath,$(COMPONENT_ADD_LDFLAGS))' >> $@

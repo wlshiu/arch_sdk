@@ -10,7 +10,7 @@
 # where this file is located.
 #
 
-.PHONY: build-components menuconfig defconfig all build clean distclean all_binaries check-submodules size tags TAGS cscope gtags
+.PHONY: build-components menuconfig defconfig all build clean distclean all_binaries size tags TAGS cscope gtags
 all: all_binaries
 # see below for recipe of 'all' target
 #
@@ -32,14 +32,23 @@ help:
 	@echo "  make distclean             - Remove all generated files + config + various backup files"
 	@echo ""
 	@echo "  make app                   - Build just the app"
+	@echo "  make app-list              - List the executable app"
 	@echo "  make app-clean             - Clean just the app"
 	@echo ""
 	@echo "  make tags/gtags/cscope     - Generate tags for editors"
 	@echo ""
 	@echo "----------------------------------------------------------------------"
 
+# dependency checks
+ifndef MAKE_RESTARTS
+ifeq ("$(filter 4.% 3.81 3.82,$(MAKE_VERSION))","")
+$(warning "Build system only supports GNU Make versions 3.81 or newer. You may see unexpected results with other Makes.")
+endif
+endif
 
-# ---------------------------------------------------------------------------
+
+#===========================================================================
+ASTYLE_TOOL_DIR := $(srctree)/tools/astyle/build/gcc
 CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
 	  else echo sh; fi ; fi)
@@ -51,9 +60,9 @@ export CONFIG_SHELL
 BUILD_DIR_BASE ?= $(BUILD_OUTPUT)
 export BUILD_DIR_BASE
 
+# ---------------------------------------------------------------------------
 # list apps
 # ---------------------------------------------------------------------------
-# ref: current_dir := $(notdir $(patsubst %/,%,$(dir $(mkfile_path)))
 APPS := $(dir $(sort $(wildcard $(srctree)/apps/*/Makefile)))
 APPS := $(notdir $(foreach app,$(APPS),$(lastword $(subst /, ,$(app)))))
 export APPS
@@ -61,19 +70,21 @@ export APPS
 cmd = @$(echo-cmd) $(cmd_$(1))
 export cmd
 
+# ---------------------------------------------------------------------------
 # Set variables common to both project & component
 # ---------------------------------------------------------------------------
 include $(srctree)/tools/scripts/common.mk
-PROJECT_PATH := $(addsuffix $(strip $(call dequote,$(CONFIG_TARGET_APP_PROJECT))),$(srctree)/apps/)
-export PROJECT_PATH
-# ---------------------------------------------------------------------------
+PROJECT_NAME := $(call dequote,$(CONFIG_TARGET_APP_PROJECT))
+PROJECT_PATH := $(addsuffix $(strip $(PROJECT_NAME)),$(srctree)/apps/)
+export PROJECT_NAME PROJECT_PATH
 
-# dependency checks
-ifndef MAKE_RESTARTS
-ifeq ("$(filter 4.% 3.81 3.82,$(MAKE_VERSION))","")
-$(warning "Build system only supports GNU Make versions 3.81 or newer. You may see unexpected results with other Makes.")
-endif
-endif
+# ---------------------------------------------------------------------------
+# TODO: vresion
+# Git version of ESP-IDF (of the form v1.0-285-g5c4f707)
+# ---------------------------------------------------------------------------
+# IDF_VER := $(shell git -C $(IDF_PATH) describe)
+#===========================================================================
+
 
 # disable built-in make rules, makes debugging saner
 MAKEFLAGS_OLD := $(MAKEFLAGS)
@@ -90,23 +101,17 @@ endif
 COMMON_MAKEFILES := $(abspath $(srctree)/tools/scripts/project.mk $(srctree)/tools/scripts/common.mk $(srctree)/tools/scripts/component_wrapper.mk)
 export COMMON_MAKEFILES
 
-# The directory where we put all objects/libraries/binaries. The project Makefile can
-# configure this if needed.
-# BUILD_DIR_BASE ?= $(PROJECT_PATH)/build
-## export BUILD_DIR_BASE
-
 # Component directories. These directories are searched for components.
 # The project Makefile can override these component dirs, or define extra component directories.
 COMPONENT_DIRS ?= $(PROJECT_PATH)/modules \
 				$(EXTRA_MODULE_DIRS) \
 				$(srctree)/middleware/third_party \
-				$(srctree)/middleware/vango \
 				$(srctree)/middleware/prebuild
 
 export COMPONENT_DIRS
 
 # Source directories of the project itself (a special, project-specific component.) Defaults to only "main".
-SRCDIRS ?= main
+SRCDIRS ?= $(PROJECT_PATH)/main
 
 # The project Makefile can define a list of components, but if it does not do this we just take
 # all available components in the component dirs.
@@ -173,31 +178,11 @@ COMPONENT_INCLUDES += $(abspath $(BUILD_DIR_BASE)/include/)
 
 export COMPONENT_INCLUDES
 
-# Set variables common to both project & component
-# include $(srctree)/tools/scripts/common.mk
-
 
 all:
-ifdef CONFIG_SECURE_BOOT_ENABLED
-	@echo "(Secure boot enabled, so bootloader not flashed automatically. See 'make bootloader' output)"
-ifndef CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES
-	@echo "App built but not signed. Sign app & partition data before flashing, via espsecure.py:"
-	@echo "espsecure.py sign_data --keyfile KEYFILE $(APP_BIN)"
-	@echo "espsecure.py sign_data --keyfile KEYFILE $(PARTITION_TABLE_BIN)"
-endif
-	@echo "To flash app & partition table, run 'make flash' or:"
-else
-	@echo "To flash all build output, run 'make flash' or:"
-endif
-	@echo $(ESPTOOLPY_WRITE_FLASH) $(ESPTOOL_ALL_FLASH_ARGS)
-
-
-# TODO: vresion
-# Git version of ESP-IDF (of the form v1.0-285-g5c4f707)
-# IDF_VER := $(shell git -C $(IDF_PATH) describe)
+	@echo -e $(YELLOW) "Build done..."$(NC)
 
 # Set default LDFLAGS
-
 LDFLAGS ?= -nostdlib \
 	$(addprefix -L$(BUILD_DIR_BASE)/,$(COMPONENTS) $(TEST_COMPONENT_NAMES) $(SRCDIRS) ) \
 	-u call_user_start_cpu0	\
@@ -236,8 +221,9 @@ COMMON_WARNING_FLAGS = -Wall -Werror=all \
 COMMON_FLAGS = \
 	-ffunction-sections -fdata-sections \
 	-fstrict-volatile-bitfields \
-	-mlongcalls \
 	-nostdlib
+
+# COMMON_FLAGS += -mlongcalls
 
 # Optimization flags are set based on menuconfig choice
 ifneq ("$(CONFIG_OPTIMIZATION_LEVEL_RELEASE)","")
@@ -310,7 +296,6 @@ COMPONENT_PATH := $(1)
 endef
 $(foreach componentpath,$(COMPONENT_PATHS),$(eval $(call includeProjBuildMakefile,$(componentpath))))
 
-
 # once we know component paths, we can include the config generation targets
 #
 # (bootloader build doesn't need this, config is exported from top-level)
@@ -329,8 +314,12 @@ COMPONENT_LIBRARIES = $(filter $(notdir $(COMPONENT_PATHS_BUILDABLE)) $(TEST_COM
 # also depends on additional dependencies (linker scripts & binary libraries)
 # stored in COMPONENT_LINKER_DEPS, built via component.mk files' COMPONENT_ADD_LINKER_DEPS variable
 $(APP_ELF): $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/lib$(libcomp).a) $(COMPONENT_LINKER_DEPS)
-	$(summary) LD $(notdir $@)
+	$(summary) $(GREEN)  LD $(notdir $@) $(NC)
 	$(CC) $(LDFLAGS) -o $@ -Wl,-Map=$(APP_MAP)
+
+$(APP_BIN): $(APP_ELF)
+	$(summary) $(YELLOW) "Post Build Steps ................."$(NC)
+	$(summary) $(RED) "TODO: elf to bin" $(NC)
 
 # Generation of $(APP_BIN) from $(APP_ELF) is added by the esptool
 # component's Makefile.projbuild
@@ -366,7 +355,7 @@ endef
 define GenerateComponentTargets
 .PHONY: $(2)-build $(2)-clean
 
-$(2)-build: check-submodules
+$(2)-build:
 	$(call ComponentMake,$(1),$(2)) build
 
 $(2)-clean:
@@ -403,6 +392,8 @@ app-clean: $(addsuffix -clean,$(notdir $(COMPONENT_PATHS_BUILDABLE)))
 size: $(APP_ELF)
 	$(SIZE) $(APP_ELF)
 
+#===========================================================================
+# ---------------------------------------------------------------------------
 # Generate tags for editors
 # ---------------------------------------------------------------------------
 quiet_cmd_tags = GEN     $@
@@ -410,72 +401,23 @@ quiet_cmd_tags = GEN     $@
 
 tags TAGS cscope gtags:
 	$(call cmd,tags)
+
 # ---------------------------------------------------------------------------
+# astyle format syntax
+# ---------------------------------------------------------------------------
+astyle:
+	@echo "Not yet !!"
+	# CXX=$(HOSTCXX) CC=$(HOSTCC) LD=$(HOSTLD) $(MAKE) -C $(ASTYLE_TOOL_DIR)
+
+# ---------------------------------------------------------------------------
+# list executable apps
+# ---------------------------------------------------------------------------
+app-list:
+	@echo $(APPS)
+#===========================================================================
 
 # NB: this ordering is deliberate (app-clean before config-clean),
 # so config remains valid during all component clean targets
 config-clean: app-clean
 clean: config-clean
 distclean: clean
-
-# phony target to check if any git submodule listed in COMPONENT_SUBMODULES are missing
-# or out of date, and exit if so. Components can add paths to this variable.
-#
-# This only works for components inside IDF_PATH
-
-# check-submodules:
-
-# # Generate a target to check this submodule
-# # $(1) - submodule directory, relative to IDF_PATH
-# define GenerateSubmoduleCheckTarget
-# check-submodules: $(IDF_PATH)/$(1)/.git
-# $(IDF_PATH)/$(1)/.git:
-# 	@echo "WARNING: Missing submodule $(1)..."
-# 	[ -d ${IDF_PATH}/.git ] || ( echo "ERROR: esp-idf must be cloned from git to work."; exit 1)
-# 	[ -x $(which git) ] || ( echo "ERROR: Need to run 'git submodule init $(1)' in esp-idf root directory."; exit 1)
-# 	@echo "Attempting 'git submodule update --init $(1)' in esp-idf root directory..."
-# 	cd ${IDF_PATH} && git submodule update --init $(1)
-#
-# # Parse 'git submodule status' output for out-of-date submodule.
-# # Status output prefixes status line with '+' if the submodule commit doesn't match
-# ifneq ("$(shell cd ${IDF_PATH} && git submodule status $(1) | grep '^+')","")
-# $$(info WARNING: esp-idf git submodule $(1) may be out of date. Run 'git submodule update' in IDF_PATH dir to update.)
-# endif
-# endef
-
-# filter/subst in expression ensures all submodule paths begin with $(IDF_PATH), and then strips that prefix
-# so the argument is suitable for use with 'git submodule' commands
-# $(foreach submodule,$(subst $(IDF_PATH)/,,$(filter $(IDF_PATH)/%,$(COMPONENT_SUBMODULES))),$(eval $(call GenerateSubmoduleCheckTarget,$(submodule))))
-
-
-# Check toolchain version using the output of xtensa-esp32-elf-gcc --version command.
-# The output normally looks as follows
-#     xtensa-esp32-elf-gcc (crosstool-NG crosstool-ng-1.22.0-59-ga194053) 4.8.5
-# The part in brackets is extracted into TOOLCHAIN_COMMIT_DESC variable,
-# the part after the brackets is extracted into TOOLCHAIN_GCC_VER.
-## ifdef CONFIG_TOOLPREFIX
-## ifndef MAKE_RESTARTS
-## TOOLCHAIN_COMMIT_DESC := $(shell $(CC) --version | sed -E -n 's|xtensa-esp32-elf-gcc.*\ \(([^)]*).*|\1|gp')
-## TOOLCHAIN_GCC_VER := $(shell $(CC) --version | sed -E -n 's|xtensa-esp32-elf-gcc.*\ \(.*\)\ (.*)|\1|gp')
-##
-## # Officially supported version(s)
-## SUPPORTED_TOOLCHAIN_COMMIT_DESC := crosstool-NG crosstool-ng-1.22.0-61-gab8375a
-## SUPPORTED_TOOLCHAIN_GCC_VERSIONS := 5.2.0
-##
-## ifdef TOOLCHAIN_COMMIT_DESC
-## ifneq ($(TOOLCHAIN_COMMIT_DESC), $(SUPPORTED_TOOLCHAIN_COMMIT_DESC))
-## $(info WARNING: Toolchain version is not supported: $(TOOLCHAIN_COMMIT_DESC))
-## $(info Expected to see version: $(SUPPORTED_TOOLCHAIN_COMMIT_DESC))
-## $(info Please check ESP-IDF setup instructions and update the toolchain, or proceed at your own risk.)
-## endif
-## ifeq (,$(findstring $(TOOLCHAIN_GCC_VER), $(SUPPORTED_TOOLCHAIN_GCC_VERSIONS)))
-## $(info WARNING: Compiler version is not supported: $(TOOLCHAIN_GCC_VER))
-## $(info Expected to see version(s): $(SUPPORTED_TOOLCHAIN_GCC_VERSIONS))
-## $(info Please check ESP-IDF setup instructions and update the toolchain, or proceed at your own risk.)
-## endif
-## else
-## $(info WARNING: Failed to find Xtensa toolchain, may need to alter PATH or set one in the configuration menu)
-## endif # TOOLCHAIN_COMMIT_DESC
-##
-## endif #MAKE_RESTARTS
-## endif #CONFIG_TOOLPREFIX

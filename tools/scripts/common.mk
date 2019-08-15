@@ -2,6 +2,12 @@
 # and component makefiles (component_wrapper.mk)
 #
 
+RED="\033[0;31m"
+GREEN="\033[0;32m"
+YELLOW="\033[0;33m"
+GREY="\033[0;37m"
+NC="\033[0m"
+
 # Include project config makefile, if it exists.
 #
 # (Note that we only rebuild this makefile automatically for some
@@ -22,13 +28,17 @@ endif
 V ?= $(VERBOSE)
 ifeq ("$(V)","1")
 summary := @true
-details := @echo
+details := @echo -e
 else
-summary := @echo
+summary := @echo -e
 details := @true
 
 # disable echoing of commands, directory names
 MAKEFLAGS += --silent
+endif  # $(V)==1
+
+ifdef CONFIG_MAKE_WARN_UNDEFINED_VARIABLES
+MAKEFLAGS += --warn-undefined-variables
 endif
 
 # General make utilities
@@ -72,4 +82,12 @@ endef
 # example $(call prereq_if_explicit,erase_flash)
 define prereq_if_explicit
 $(filter $(1),$(MAKECMDGOALS))
+endef
+
+# macro to kill duplicate items in a list without messing up the sort order of the list.
+# Will only keep the unique items; if there are non-unique items in the list, it will remove
+# the later recurring ones so only the first one remains.
+# Copied from http://stackoverflow.com/questions/16144115/makefile-remove-duplicate-words-without-sorting
+define uniq
+$(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 endef

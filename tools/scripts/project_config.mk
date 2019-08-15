@@ -18,7 +18,6 @@ SDKCONFIG_DEFAULTS ?= $(srctree)/apps/sdkconfig.defaults
 
 # reset MAKEFLAGS as the menuconfig makefile uses implicit compile rules
 $(KCONFIG_TOOL_DIR)/mconf $(KCONFIG_TOOL_DIR)/conf:
-	$(Q)if [ ! -f $(srctree)/apps/Kconfig.app ]; then echo "GEN    App Kconfig"; $(srctree)/tools/scripts/gen_app_kconfig.sh $(srctree)/apps $(APPS); fi
 	MAKEFLAGS=$(ORIGINAL_MAKEFLAGS) CC=$(HOSTCC) LD=$(HOSTLD) \
 	$(MAKE) -C $(KCONFIG_TOOL_DIR)
 
@@ -58,7 +57,7 @@ ifeq ("$(MAKE_RESTARTS)","")
 
 menuconfig: $(KCONFIG_TOOL_DIR)/mconf
 	$(Q)if [ ! -f $(srctree)/apps/Kconfig.app ]; then echo "GEN    App Kconfig"; $(srctree)/tools/scripts/gen_app_kconfig.sh $(srctree)/apps $(APPS); fi
-	$(summary) MENUCONFIG
+	$(summary) $(YELLOW) MENUCONFIG $(NC)
 ifdef BATCH_BUILD
 	@echo "Can't run interactive configuration inside non-interactive build process."
 	@echo ""
@@ -72,7 +71,7 @@ endif
 # defconfig creates a default config, based on SDKCONFIG_DEFAULTS if present
 defconfig: $(KCONFIG_TOOL_DIR)/conf
 	$(Q)if [ ! -f $(srctree)/apps/Kconfig.app ]; then echo "GEN    App Kconfig"; $(srctree)/tools/scripts/gen_app_kconfig.sh $(srctree)/apps $(APPS); fi
-	$(summary) DEFCONFIG
+	$(summary) $(YELLOW) DEFCONFIG $(NC)
 ifneq ("$(wildcard $(SDKCONFIG_DEFAULTS))","")
 	cat $(SDKCONFIG_DEFAULTS) >> $(SDKCONFIG)  # append defaults to sdkconfig, will override existing values
 endif
@@ -81,7 +80,7 @@ endif
 # if neither defconfig or menuconfig are requested, use the GENCONFIG rule to
 # ensure generated config files are up to date
 $(SDKCONFIG_MAKEFILE) $(BUILD_DIR_BASE)/include/sdkconfig.h: $(KCONFIG_TOOL_DIR)/conf $(SDKCONFIG) $(COMPONENT_KCONFIGS) $(COMPONENT_KCONFIGS_PROJBUILD) | $(call prereq_if_explicit,defconfig) $(call prereq_if_explicit,menuconfig)
-	$(summary) GENCONFIG
+	$(summary) $(YELLOW) GENCONFIG $(NC)
 ifdef BATCH_BUILD  # can't prompt for new config values like on terminal
 	$(call RunConf,conf --olddefconfig)
 endif
