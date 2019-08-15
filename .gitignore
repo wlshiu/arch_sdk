@@ -60,3 +60,6 @@ bin/*
 .config.old
 include/autoconf.h
 */autoconf.h
+**/out/*
+**/build/*
+**/sdkconfig*
