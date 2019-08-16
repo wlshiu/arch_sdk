@@ -258,7 +258,7 @@ OPTIMIZATION_FLAGS += -ggdb
 # List of flags to pass to C compiler
 # If any flags are defined in application Makefile, add them at the end.
 CFLAGS := $(strip \
-	-std=gnu99 \
+	-std=c99 \
 	$(OPTIMIZATION_FLAGS) \
 	$(COMMON_FLAGS) \
 	$(COMMON_WARNING_FLAGS) -Wno-old-style-declaration \
