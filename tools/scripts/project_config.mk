@@ -4,6 +4,8 @@
 COMPONENT_KCONFIGS := $(foreach component,$(COMPONENT_PATHS),$(wildcard $(component)/Kconfig))
 COMPONENT_KCONFIGS_PROJBUILD := $(foreach component,$(COMPONENT_PATHS),$(wildcard $(component)/Kconfig.projbuild))
 
+COMPONENT_KCONFIGS := $(filter-out $(srctree)/apps/%,$(COMPONENT_KCONFIGS))
+
 #For doing make menuconfig etc
 KCONFIG_TOOL_DIR=$(srctree)/tools/scripts/kconfig
 
@@ -23,8 +25,6 @@ $(KCONFIG_TOOL_DIR)/mconf $(KCONFIG_TOOL_DIR)/conf:
 
 #-----------------------------------------------------------------
 ifeq ("$(wildcard $(SDKCONFIG))","")
-
-$(warning ggg=$(filter %_defconfig, $(MAKECMDGOALS)))
 
 ifneq ("$(filter %_defconfig, $(MAKECMDGOALS))","")
 # user defconfig
@@ -94,13 +94,14 @@ endif
 	@echo -e $(RED)"new target(%_defconfig): $(@)" $(NC)
 	$(call RunConf,conf --defconfig=$(srctree)/configs/$@)
 
-savedefconfig:
+savedefconfig: $(KCONFIG_TOOL_DIR)/conf $(SDKCONFIG) $(COMPONENT_KCONFIGS)
+	$(Q)if [ ! -f $(srctree)/apps/Kconfig.app ]; then echo "GEN    App Kconfig"; $(srctree)/tools/scripts/gen_app_kconfig.sh $(srctree)/apps $(APPS); fi
 	@echo -e $(RED)"new target(savedefconfig): $(@)" $(NC)
 	$(call RunConf,conf --$@=defconfig)
 
 # if neither defconfig or menuconfig are requested, use the GENCONFIG rule to
 # ensure generated config files are up to date
-$(SDKCONFIG_MAKEFILE) $(BUILD_DIR_BASE)/include/sdkconfig.h: $(KCONFIG_TOOL_DIR)/conf $(SDKCONFIG) $(COMPONENT_KCONFIGS) $(COMPONENT_KCONFIGS_PROJBUILD) | $(call prereq_if_explicit,defconfig) $(call prereq_if_explicit,menuconfig)
+$(SDKCONFIG_MAKEFILE) $(BUILD_DIR_BASE)/include/sdkconfig.h: $(KCONFIG_TOOL_DIR)/conf $(SDKCONFIG) $(COMPONENT_KCONFIGS) $(COMPONENT_KCONFIGS_PROJBUILD) | $(call prereq_if_explicit,defconfig) $(call prereq_if_explicit,menuconfig) $(call prereq_if_explicit,savedefconfig)
 	$(summary) $(YELLOW) GENCONFIG $(NC)
 ifdef BATCH_BUILD  # can't prompt for new config values like on terminal
 	$(call RunConf,conf --olddefconfig)
@@ -113,9 +114,10 @@ else  # "$(MAKE_RESTARTS)" != ""
 defconfig:
 menuconfig:
 %_defconfig:
+savedefconfig:
 endif
 
-.PHONY: config-clean distclean defconfig menuconfig
+.PHONY: config-clean distclean defconfig menuconfig savedefconfig
 config-clean:
 	$(summary RM CONFIG)
 	rm -rf $(BUILD_DIR_BASE)/include/config $(BUILD_DIR_BASE)/include/sdkconfig.h

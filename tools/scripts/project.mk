@@ -101,6 +101,7 @@ DOXYGEN := @cat
 doxy:
 	@echo -e $(YELLOW) "Running doxygen to create documentations" $(NC)
 	$(DOXYGEN) $(srctree)/tools/Doxyfile
+
 #===========================================================================
 
 
@@ -200,6 +201,9 @@ export COMPONENT_INCLUDES
 all:
 	@echo -e $(YELLOW) "Build done..."$(NC)
 
+# Set CPU options
+CPU_FLAGS := -marm -mlittle-endian -mthumb -mcpu=cortex-m4 -march=armv7e-m
+
 # Set default LDFLAGS
 LDFLAGS ?= -nostdlib \
 	$(addprefix -L$(BUILD_DIR_BASE)/,$(COMPONENTS) $(TEST_COMPONENT_NAMES)) \
@@ -238,6 +242,8 @@ COMMON_WARNING_FLAGS = -Wall -Werror=all \
 
 # Flags which control code generation and dependency generation, both for C and C++
 COMMON_FLAGS = \
+	$(CPU_FLAGS) \
+	-include $(BUILD_DIR_BASE)/include/sdkconfig.h \
 	-ffunction-sections -fdata-sections \
 	-fstrict-volatile-bitfields \
 	-nostdlib

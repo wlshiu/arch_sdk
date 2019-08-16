@@ -1,0 +1,20 @@
+#
+# For a description of the syntax of this configuration file,
+# see kconfig/kconfig-language.txt.
+#
+
+
+if XXX  # Some variable be enable
+
+menu "XXX"
+
+    config YYY
+        bool "yyy"
+        default 0
+        ---help---
+            description message
+
+endmenu
+
+
+endif
