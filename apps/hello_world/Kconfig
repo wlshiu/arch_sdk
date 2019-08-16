@@ -5,7 +5,6 @@
 if HELLO_WORLD
 comment "Application - Hello World"
 
-
 menu "Hello World"
 
     config VERSION

@@ -5,10 +5,6 @@
 # together into the final file. If so, PWD is the project dir (we assume).
 #
 
-#
-# This makefile requires the environment variable IDF_PATH to be set to the top-level esp-idf directory
-# where this file is located.
-#
 
 .PHONY: build-components menuconfig defconfig all build clean distclean all_binaries size tags TAGS cscope gtags
 all: all_binaries
@@ -35,7 +31,13 @@ help:
 	@echo "  make app-list              - List the executable app"
 	@echo "  make app-clean             - Clean just the app"
 	@echo ""
-	@echo "  make tags/gtags/cscope     - Generate tags for editors"
+	@echo "  make tags/TAGS				- Generate tags file for editors"
+	@echo "  make cscope				- Generate cscope index"
+	@echo "  make gtags					- Generate GNU GLOBAL index"
+	@echo ""
+	@echo "  make astyle directory      - Format syntax with directory"
+	@echo ""
+	@echo "  make doxy 					- Generate documentations"
 	@echo ""
 	@echo "----------------------------------------------------------------------"
 
@@ -48,7 +50,6 @@ endif
 
 
 #===========================================================================
-ASTYLE_TOOL_DIR := $(srctree)/tools/astyle/build/gcc
 CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
 	  else echo sh; fi ; fi)
@@ -63,7 +64,7 @@ export BUILD_DIR_BASE
 # ---------------------------------------------------------------------------
 # list apps
 # ---------------------------------------------------------------------------
-APPS := $(dir $(sort $(wildcard $(srctree)/apps/*/Makefile)))
+APPS := $(dir $(sort $(wildcard $(srctree)/apps/*/component.mk)))
 APPS := $(notdir $(foreach app,$(APPS),$(lastword $(subst /, ,$(app)))))
 export APPS
 
@@ -83,6 +84,23 @@ export PROJECT_NAME PROJECT_PATH
 # Git version of ESP-IDF (of the form v1.0-285-g5c4f707)
 # ---------------------------------------------------------------------------
 # IDF_VER := $(shell git -C $(IDF_PATH) describe)
+
+# ---------------------------------------------------------------------------
+# astyle format syntax
+# ---------------------------------------------------------------------------
+ASTYLE_TOOL_DIR := $(srctree)/tools/astyle/build/gcc
+ASTYLE := $(ASTYLE_TOOL_DIR)/bin/astyle
+export ASTYLE_TOOL_DIR ASTYLE
+
+astyle:
+	@echo -e $(YELLOW) "Format Syntax..." $(NC)
+	$(Q)if [ ! -f $(ASTYLE) ]; then echo "Build astyle"; CXX=$(HOSTCXX) CC=$(HOSTCC) LD=$(HOSTLD) CFLAGS= $(MAKE) -C $(ASTYLE_TOOL_DIR); fi
+	@cd $(srctree)
+
+DOXYGEN := @cat
+doxy:
+	@echo -e $(YELLOW) "Running doxygen to create documentations" $(NC)
+	$(DOXYGEN) $(srctree)/tools/Doxyfile
 #===========================================================================
 
 
@@ -103,7 +121,7 @@ export COMMON_MAKEFILES
 
 # Component directories. These directories are searched for components.
 # The project Makefile can override these component dirs, or define extra component directories.
-COMPONENT_DIRS ?= $(PROJECT_PATH)/modules \
+COMPONENT_DIRS ?= $(PROJECT_PATH)/libs \
 				$(EXTRA_MODULE_DIRS) \
 				$(srctree)/middleware/third_party \
 				$(srctree)/middleware/prebuild
@@ -111,7 +129,7 @@ COMPONENT_DIRS ?= $(PROJECT_PATH)/modules \
 export COMPONENT_DIRS
 
 # Source directories of the project itself (a special, project-specific component.) Defaults to only "main".
-SRCDIRS ?= $(PROJECT_PATH)/main
+SRCDIRS ?= $(PROJECT_PATH)
 
 # The project Makefile can define a list of components, but if it does not do this we just take
 # all available components in the component dirs.
@@ -184,7 +202,8 @@ all:
 
 # Set default LDFLAGS
 LDFLAGS ?= -nostdlib \
-	$(addprefix -L$(BUILD_DIR_BASE)/,$(COMPONENTS) $(TEST_COMPONENT_NAMES) $(SRCDIRS) ) \
+	$(addprefix -L$(BUILD_DIR_BASE)/,$(COMPONENTS) $(TEST_COMPONENT_NAMES)) \
+	$(addprefix -L$(BUILD_DIR_BASE)/,$(PROJECT_NAME) ) \
 	-u call_user_start_cpu0	\
 	$(EXTRA_LDFLAGS) \
 	-Wl,--gc-sections	\
@@ -258,7 +277,9 @@ CXXFLAGS := $(strip \
 	$(CXXFLAGS) \
 	$(EXTRA_CXXFLAGS))
 
-export CFLAGS CPPFLAGS CXXFLAGS
+OBJCOPY_FLAGS := -O binary
+
+export CFLAGS CPPFLAGS CXXFLAGS OBJCOPY_FLAGS
 
 # Set host compiler and binutils
 HOSTCC := $(CC)
@@ -320,6 +341,7 @@ $(APP_ELF): $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp
 $(APP_BIN): $(APP_ELF)
 	$(summary) $(YELLOW) "Post Build Steps ................."$(NC)
 	$(summary) $(RED) "TODO: elf to bin" $(NC)
+	# @$(OBJCOPY) $(OBJCOPY_FLAGS) $< $@
 
 # Generation of $(APP_BIN) from $(APP_ELF) is added by the esptool
 # component's Makefile.projbuild
@@ -359,6 +381,7 @@ $(2)-build:
 	$(call ComponentMake,$(1),$(2)) build
 
 $(2)-clean:
+	$(summary) $(GREEN) "clean $(2)" $(NC)
 	$(call ComponentMake,$(1),$(2)) clean
 
 $(BUILD_DIR_BASE)/$(2):
@@ -401,13 +424,6 @@ quiet_cmd_tags = GEN     $@
 
 tags TAGS cscope gtags:
 	$(call cmd,tags)
-
-# ---------------------------------------------------------------------------
-# astyle format syntax
-# ---------------------------------------------------------------------------
-astyle:
-	@echo "Not yet !!"
-	# CXX=$(HOSTCXX) CC=$(HOSTCC) LD=$(HOSTLD) $(MAKE) -C $(ASTYLE_TOOL_DIR)
 
 # ---------------------------------------------------------------------------
 # list executable apps

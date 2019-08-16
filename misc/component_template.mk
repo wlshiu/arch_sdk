@@ -1,0 +1,24 @@
+#
+# Component Makefile
+#
+
+COMPONENT_ADD_LDFLAGS =
+COMPONENT_ADD_INCLUDEDIRS :=
+COMPONENT_PRIV_INCLUDEDIRS :=
+
+#
+# set object file name
+#
+COMPONENT_OBJS :=
+
+
+#
+# take all .c, .cpp & .S files in COMPONENT_SRCDIRS
+#
+COMPONENT_SRCDIRS :=
+
+COMPONENT_ADD_LINKER_DEPS :=
+
+CFLAGS +=
+
+

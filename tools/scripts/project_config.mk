@@ -21,17 +21,29 @@ $(KCONFIG_TOOL_DIR)/mconf $(KCONFIG_TOOL_DIR)/conf:
 	MAKEFLAGS=$(ORIGINAL_MAKEFLAGS) CC=$(HOSTCC) LD=$(HOSTLD) \
 	$(MAKE) -C $(KCONFIG_TOOL_DIR)
 
+#-----------------------------------------------------------------
 ifeq ("$(wildcard $(SDKCONFIG))","")
-ifeq ("$(filter defconfig, $(MAKECMDGOALS))","")
+
+$(warning ggg=$(filter %_defconfig, $(MAKECMDGOALS)))
+
+ifneq ("$(filter %_defconfig, $(MAKECMDGOALS))","")
+# user defconfig
+SDKCONFIG := $(filter %_defconfig, $(MAKECMDGOALS))
+$(SDKCONFIG): %_defconfig
+
+else ifeq ("$(filter defconfig, $(MAKECMDGOALS))","")
 # if no configuration file is present and defconfig is not a named
 # target, run defconfig then menuconfig to get the initial config
 $(SDKCONFIG): menuconfig
 menuconfig: defconfig
-else
+
+else 	# ifeq ("$(filter defconfig, $(MAKECMDGOALS))","")
 # otherwise, just run defconfig
 $(SDKCONFIG): defconfig
 endif
-endif
+
+endif 	# ifeq ("$(wildcard $(SDKCONFIG))","")
+#-----------------------------------------------------------------
 
 # macro for the commands to run kconfig tools conf or mconf.
 # $1 is the name (& args) of the conf tool to run
@@ -77,6 +89,15 @@ ifneq ("$(wildcard $(SDKCONFIG_DEFAULTS))","")
 endif
 	$(call RunConf,conf --olddefconfig)
 
+%_defconfig: $(KCONFIG_TOOL_DIR)/conf
+	$(Q)if [ ! -f $(srctree)/apps/Kconfig.app ]; then echo "GEN    App Kconfig"; $(srctree)/tools/scripts/gen_app_kconfig.sh $(srctree)/apps $(APPS); fi
+	@echo -e $(RED)"new target(%_defconfig): $(@)" $(NC)
+	$(call RunConf,conf --defconfig=$(srctree)/configs/$@)
+
+savedefconfig:
+	@echo -e $(RED)"new target(savedefconfig): $(@)" $(NC)
+	$(call RunConf,conf --$@=defconfig)
+
 # if neither defconfig or menuconfig are requested, use the GENCONFIG rule to
 # ensure generated config files are up to date
 $(SDKCONFIG_MAKEFILE) $(BUILD_DIR_BASE)/include/sdkconfig.h: $(KCONFIG_TOOL_DIR)/conf $(SDKCONFIG) $(COMPONENT_KCONFIGS) $(COMPONENT_KCONFIGS_PROJBUILD) | $(call prereq_if_explicit,defconfig) $(call prereq_if_explicit,menuconfig)
@@ -91,6 +112,7 @@ else  # "$(MAKE_RESTARTS)" != ""
 # on subsequent make passes, skip config generation entirely
 defconfig:
 menuconfig:
+%_defconfig:
 endif
 
 .PHONY: config-clean distclean defconfig menuconfig
@@ -101,4 +123,5 @@ config-clean:
 distclean:
 	rm -fr $(BUILD_OUTPUT) $(srctree)/apps/Kconfig.app
 	$(MAKE) -C $(KCONFIG_TOOL_DIR) distclean
+	$(MAKE) -C $(ASTYLE_TOOL_DIR) clean
 

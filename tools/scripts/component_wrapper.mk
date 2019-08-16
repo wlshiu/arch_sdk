@@ -135,7 +135,7 @@ build: $(COMPONENT_LIBRARY)
 # Build the archive. We remove the archive first, otherwise ar will get confused if we update
 # an archive when multiple filenames have the same name (src1/test.o and src2/test.o)
 $(COMPONENT_LIBRARY): $(COMPONENT_OBJS) $(COMPONENT_EMBED_OBJS)
-	$(summary) AR $@
+	$(summary) $(YELLOW) AR $@ $(NC)
 	rm -f $@
 	$(AR) cru $@ $^
 endif
