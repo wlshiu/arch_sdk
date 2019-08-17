@@ -7,7 +7,7 @@
 
 
 .PHONY: build-components menuconfig defconfig all build clean distclean all_binaries size tags TAGS cscope gtags
-all: all_binaries
+all: info all_binaries
 # see below for recipe of 'all' target
 #
 # # other components will add dependencies to 'all_binaries'. The
@@ -80,10 +80,19 @@ PROJECT_PATH := $(addsuffix $(strip $(PROJECT_NAME)),$(srctree)/apps/)
 export PROJECT_NAME PROJECT_PATH
 
 # ---------------------------------------------------------------------------
-# TODO: vresion
-# Git version of ESP-IDF (of the form v1.0-285-g5c4f707)
+# TODO: version
+# Git version
 # ---------------------------------------------------------------------------
-# IDF_VER := $(shell git -C $(IDF_PATH) describe)
+GIT := $(shell command -v git 2> /dev/null)
+
+ifdef GIT
+GIT_COMMINT_VER := $(shell $(GIT) describe --long --all --always --abbrev=8 | sed 's/.*-g\(.*\)/\1/')
+# $(info The Git commit SHA-1 ID $(GIT_COMMINT_VER))
+endif
+
+info:
+	@if [ ! -z $(GIT) ]; then $(GIT) config --global core.autocrlf input; fi
+	@echo -e $(YELLOW) "The Git commit SHA-1 ID \"$(GIT_COMMINT_VER)\"" $(NC)
 
 # ---------------------------------------------------------------------------
 # astyle format syntax
