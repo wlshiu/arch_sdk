@@ -11,7 +11,7 @@ echo "#" >> ${out_kconfig}
 echo "choice" >> ${out_kconfig}
 echo "  prompt \"Target App\"" >> ${out_kconfig}
 echo "  default HELLO_WORLD" >> ${out_kconfig}
-echo "  help" >> ${out_kconfig}
+echo "  ---help---" >> ${out_kconfig}
 echo "      Select the target application." >> ${out_kconfig}
 
 for ((i = 1 ; i < $# ; i++));

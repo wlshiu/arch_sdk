@@ -98,5 +98,7 @@ bin/*
 **/toolchain.env
 **/.config*
 **/Kconfig.app
+**/Kconfig.linkscript
 sdkconfig
+autoconfig
 out/*

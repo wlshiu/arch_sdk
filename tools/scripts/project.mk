@@ -6,8 +6,8 @@
 #
 
 
-.PHONY: build-components menuconfig defconfig all build clean distclean all_binaries size tags TAGS cscope gtags
-all: info all_binaries
+.PHONY: build-components menuconfig defconfig all build clean distclean info env_setup all_binaries size tags TAGS cscope gtags
+all: info env_setup all_binaries
 # see below for recipe of 'all' target
 #
 # # other components will add dependencies to 'all_binaries'. The
@@ -54,7 +54,9 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
 	  else echo sh; fi ; fi)
 
-export CONFIG_SHELL
+cmd = @$(echo-cmd) $(cmd_$(1))
+
+export CONFIG_SHELL cmd
 
 # The directory where we put all objects/libraries/binaries. The project Makefile can
 # configure this if needed.
@@ -68,8 +70,15 @@ APPS := $(dir $(sort $(wildcard $(srctree)/apps/*/component.mk)))
 APPS := $(notdir $(foreach app,$(APPS),$(lastword $(subst /, ,$(app)))))
 export APPS
 
-cmd = @$(echo-cmd) $(cmd_$(1))
-export cmd
+# ---------------------------------------------------------------------------
+# list link scripts
+# ---------------------------------------------------------------------------
+LINK_SCRIPTS_DIRS := \
+	$(srctree)/device \
+	$(srctree)/apps
+
+LINK_SCRIPTS := $(sort $(foreach devsrcdir,$(LINK_SCRIPTS_DIRS),$(wildcard $(devsrcdir)/*/*.ld)))
+export LINK_SCRIPTS
 
 # ---------------------------------------------------------------------------
 # Set variables common to both project & component
@@ -87,13 +96,21 @@ GIT := $(shell command -v git 2> /dev/null)
 
 ifdef GIT
 GIT_COMMINT_VER := $(shell $(GIT) describe --long --all --always --abbrev=8 | sed 's/.*-g\(.*\)/\1/')
-# $(info The Git commit SHA-1 ID $(GIT_COMMINT_VER))
 endif
+
+KCONFIG_AUTO_FILES := \
+	$(srctree)/device/Kconfig.linkscript \
+	$(srctree)/apps/Kconfig.app
+
+export KCONFIG_AUTO_FILES
 
 info:
 	@if [ ! -z $(GIT) ]; then $(GIT) config --global core.autocrlf input; fi
 	@echo -e $(YELLOW) "The Git commit SHA-1 ID \"$(GIT_COMMINT_VER)\"" $(NC)
 
+env_setup:
+	$(Q)if [ ! -f $(srctree)/device/Kconfig.linkscript ]; then echo "GEN    Link-Script Kconfig"; $(srctree)/tools/scripts/gen_ld_kconfig.sh $(srctree)/device $(LINK_SCRIPTS); fi
+	$(Q)if [ ! -f $(srctree)/apps/Kconfig.app ]; then echo "GEN    App Kconfig"; $(srctree)/tools/scripts/gen_app_kconfig.sh $(srctree)/apps $(APPS); fi
 # ---------------------------------------------------------------------------
 # astyle format syntax
 # ---------------------------------------------------------------------------
@@ -133,6 +150,7 @@ export COMMON_MAKEFILES
 # The project Makefile can override these component dirs, or define extra component directories.
 COMPONENT_DIRS ?= $(PROJECT_PATH)/libs \
 				$(EXTRA_MODULE_DIRS) \
+				$(srctree)/device \
 				$(srctree)/middleware/third_party \
 				$(srctree)/middleware/prebuild
 

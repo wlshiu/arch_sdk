@@ -15,6 +15,10 @@ menu "SDK tool configuration"
 
 endmenu
 
+
+source device/Kconfig.linkscript
+
+
 menu "System configuration"
     config SYSTEM_CLOCK
         int "System clock (Hz)"
