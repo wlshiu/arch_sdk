@@ -6,7 +6,7 @@
 #
 
 
-.PHONY: build-components menuconfig defconfig all build clean distclean info env_setup all_binaries size tags TAGS cscope gtags
+.PHONY: build-components menuconfig defconfig all build clean distclean info env_setup all_binaries size tags TAGS cscope gtags toolchain
 all: info env_setup all_binaries
 # see below for recipe of 'all' target
 #
@@ -81,6 +81,16 @@ LINK_SCRIPTS := $(sort $(foreach devsrcdir,$(LINK_SCRIPTS_DIRS),$(wildcard $(dev
 export LINK_SCRIPTS
 
 # ---------------------------------------------------------------------------
+# list tool chain
+# ---------------------------------------------------------------------------
+TOOLCHAIN_DIRS := \
+	$(srctree)/tools/toolchain
+
+TOOLCHAINS := $(sort $(foreach toolchainsrcdir,$(TOOLCHAIN_DIRS),$(wildcard $(toolchainsrcdir)/*.zip)))
+TOOLCHAINS += $(sort $(foreach toolchainsrcdir,$(TOOLCHAIN_DIRS),$(wildcard $(toolchainsrcdir)/*.tar.bz2)))
+export TOOLCHAINS
+
+# ---------------------------------------------------------------------------
 # Set variables common to both project & component
 # ---------------------------------------------------------------------------
 include $(srctree)/tools/scripts/common.mk
@@ -100,6 +110,7 @@ endif
 
 KCONFIG_AUTO_FILES := \
 	$(srctree)/device/Kconfig.linkscript \
+	$(srctree)/tools/toolchain/Kconfig.toolchain \
 	$(srctree)/apps/Kconfig.app
 
 export KCONFIG_AUTO_FILES
@@ -111,6 +122,7 @@ info:
 env_setup:
 	$(Q)if [ ! -f $(srctree)/device/Kconfig.linkscript ]; then echo "GEN    Link-Script Kconfig"; $(srctree)/tools/scripts/gen_ld_kconfig.sh $(srctree)/device $(LINK_SCRIPTS); fi
 	$(Q)if [ ! -f $(srctree)/apps/Kconfig.app ]; then echo "GEN    App Kconfig"; $(srctree)/tools/scripts/gen_app_kconfig.sh $(srctree)/apps $(APPS); fi
+	$(Q)if [ ! -f $(srctree)/tools/toolchain/Kconfig.toolchain ]; then echo "GEN    Tool-chain Kconfig"; $(srctree)/tools/scripts/gen_toolchain_kconfig.sh $(srctree)/tools/toolchain $(TOOLCHAINS); fi
 # ---------------------------------------------------------------------------
 # astyle format syntax
 # ---------------------------------------------------------------------------
@@ -235,7 +247,6 @@ CPU_FLAGS := -marm -mlittle-endian -mthumb -mcpu=cortex-m4 -march=armv7e-m
 LDFLAGS ?= -nostdlib \
 	$(addprefix -L$(BUILD_DIR_BASE)/,$(COMPONENTS) $(TEST_COMPONENT_NAMES)) \
 	$(addprefix -L$(BUILD_DIR_BASE)/,$(PROJECT_NAME) ) \
-	-u call_user_start_cpu0	\
 	$(EXTRA_LDFLAGS) \
 	-Wl,--gc-sections	\
 	-Wl,-static	\
@@ -245,6 +256,8 @@ LDFLAGS ?= -nostdlib \
 	-lstdc++ \
 	-Wl,--end-group \
 	-Wl,-EL
+
+# LDFLAGS += -u call_user_start_cpu0
 
 # Set default CPPFLAGS, CFLAGS, CXXFLAGS
 # These are exported so that components can use them when compiling.
@@ -291,7 +304,7 @@ OPTIMIZATION_FLAGS += -ggdb
 # List of flags to pass to C compiler
 # If any flags are defined in application Makefile, add them at the end.
 CFLAGS := $(strip \
-	-std=c99 \
+	-std=gnu99 \
 	$(OPTIMIZATION_FLAGS) \
 	$(COMMON_FLAGS) \
 	$(COMMON_WARNING_FLAGS) -Wno-old-style-declaration \
@@ -376,6 +389,9 @@ $(APP_BIN): $(APP_ELF)
 	$(summary) $(RED) "TODO: elf to bin" $(NC)
 	# @$(OBJCOPY) $(OBJCOPY_FLAGS) $< $@
 
+toolchain:
+	$(summary) $(YELLOW) "TODO: un-tar toolchain ..."$(NC)
+
 # Generation of $(APP_BIN) from $(APP_ELF) is added by the esptool
 # component's Makefile.projbuild
 app: $(APP_BIN)
@@ -389,7 +405,8 @@ else
 	@echo $(ESPTOOLPY_WRITE_FLASH) $(CONFIG_APP_OFFSET) $(APP_BIN)
 endif
 
-all_binaries: $(APP_BIN)
+all_binaries: toolchain $(APP_BIN)
+
 
 $(BUILD_DIR_BASE):
 	mkdir -p $(BUILD_DIR_BASE)

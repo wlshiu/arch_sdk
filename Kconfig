@@ -6,6 +6,9 @@ mainmenu "SDK Configuration"
 
 
 menu "SDK tool configuration"
+
+    source tools/toolchain/Kconfig.toolchain
+
     config TOOLPREFIX
         string "Compiler toolchain path/prefix"
         default "arm-none-eabi-"

@@ -1,4 +1,8 @@
 #!/bin/bash
+# Copyright (c) 2019, All Rights Reserved.
+# @file    gen_ld_kconfig.sh
+# @author  Wei-Lun Hsu
+# @version 0.1
 
 set -e
 
@@ -36,8 +40,9 @@ echo -e "endchoice\n" >> ${out_kconfig}
 
 echo -e "config TARGET_CUSTOMER_LD_FILE" >> ${out_kconfig}
 echo -e "  string \"Custom link script file\" if LD_FILE_CUSTOMER" >> ${out_kconfig}
-echo -e "  default \"xx/xxx.ld\"\n" >> ${out_kconfig}
-
+echo -e "  default \"\"" >> ${out_kconfig}
+echo -e "  ---help---" >> ${out_kconfig}
+echo -e "    e.g. xx/xxx.ld\n" >> ${out_kconfig}
 
 echo "config TARGET_LD_FILE" >> ${out_kconfig}
 echo "  string" >> ${out_kconfig}

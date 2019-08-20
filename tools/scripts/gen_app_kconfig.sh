@@ -1,4 +1,8 @@
 #!/bin/bash
+# Copyright (c) 2019, All Rights Reserved.
+# @file    gen_app_kconfig.sh
+# @author  Wei-Lun Hsu
+# @version 0.1
 
 set -e
 
