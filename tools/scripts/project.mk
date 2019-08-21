@@ -6,7 +6,7 @@
 #
 
 
-.PHONY: build-components menuconfig defconfig all build clean distclean info env_setup all_binaries size tags TAGS cscope gtags toolchain
+.PHONY: build-components menuconfig defconfig all build clean distclean docs info env_setup all_binaries size tags TAGS cscope gtags toolchain
 all: info env_setup all_binaries
 # see below for recipe of 'all' target
 #
@@ -37,7 +37,7 @@ help:
 	@echo ""
 	@echo "  make astyle directory      - Format syntax with directory"
 	@echo ""
-	@echo "  make doxy 					- Generate documentations"
+	@echo "  make docs 					- Generate documentations"
 	@echo ""
 	@echo "----------------------------------------------------------------------"
 
@@ -136,7 +136,7 @@ astyle:
 	@cd $(srctree)
 
 DOXYGEN := @cat
-doxy:
+docs:
 	@echo -e $(YELLOW) "Running doxygen to create documentations" $(NC)
 	$(DOXYGEN) $(srctree)/tools/Doxyfile
 
@@ -236,9 +236,28 @@ COMPONENT_INCLUDES += $(abspath $(BUILD_DIR_BASE)/include/)
 
 export COMPONENT_INCLUDES
 
+TOOLCHAIN_PATH :=
+ifneq ($(CONFIG_TARGET_TOOLCHAIN_PATH), "")
+ifneq ("$(wildcard $(srctree)/tools/toolchain/active)","")
+TOOLCHAIN_PATH := $(shell find $(srctree)/tools/toolchain/active -type f -name 'arm-none-eabi-objcopy*' -print | grep 'bin' | xargs dirname)
+TOOLCHAIN_PATH := $(addsuffix /,$(TOOLCHAIN_PATH))
+endif
+endif
+export TOOLCHAIN_PATH
 
 all:
 	@echo -e $(YELLOW) "Build done..."$(NC)
+
+toolchain:
+	$(Q)if [ ! -z $(CONFIG_TARGET_TOOLCHAIN_PATH) ] && [ ! -d $(srctree)/tools/toolchain/active ]; then \
+		echo -e "Un-tar toolchain ... $(CONFIG_TARGET_TOOLCHAIN_PATH)" ; \
+		mkdir $(srctree)/tools/toolchain/active ; \
+		$(srctree)/tools/scripts/untar_toolchain.sh $(CONFIG_TARGET_TOOLCHAIN_PATH) $(srctree)/tools/toolchain/active ; \
+	fi;
+
+toolchain-clean:
+	@echo -e "remove active toolchain"
+	@rm -fr $(srctree)/tools/toolchain/active
 
 # Set CPU options
 CPU_FLAGS := -marm -mlittle-endian -mthumb -mcpu=cortex-m4 -march=armv7e-m
@@ -344,6 +363,13 @@ LD := $(call dequote,$(CONFIG_TOOLPREFIX))ld
 AR := $(call dequote,$(CONFIG_TOOLPREFIX))ar
 OBJCOPY := $(call dequote,$(CONFIG_TOOLPREFIX))objcopy
 SIZE := $(call dequote,$(CONFIG_TOOLPREFIX))size
+
+CC := $(TOOLCHAIN_PATH)$(CC)
+CXX := $(TOOLCHAIN_PATH)$(CXX)
+LD := $(TOOLCHAIN_PATH)$(LD)
+AR := $(TOOLCHAIN_PATH)$(AR)
+OBJCOPY := $(TOOLCHAIN_PATH)$(OBJCOPY)
+SIZE := $(TOOLCHAIN_PATH)$(SIZE)
 export CC CXX LD AR OBJCOPY SIZE
 
 # TODO: python
@@ -389,8 +415,6 @@ $(APP_BIN): $(APP_ELF)
 	$(summary) $(RED) "TODO: elf to bin" $(NC)
 	# @$(OBJCOPY) $(OBJCOPY_FLAGS) $< $@
 
-toolchain:
-	$(summary) $(YELLOW) "TODO: un-tar toolchain ..."$(NC)
 
 # Generation of $(APP_BIN) from $(APP_ELF) is added by the esptool
 # component's Makefile.projbuild

@@ -68,7 +68,6 @@ ifeq ("$(MAKE_RESTARTS)","")
 # the prerequisite's own recipe.
 
 menuconfig: env_setup $(KCONFIG_TOOL_DIR)/mconf
-	# $(Q)if [ ! -f $(srctree)/apps/Kconfig.app ]; then echo "GEN    App Kconfig"; $(srctree)/tools/scripts/gen_app_kconfig.sh $(srctree)/apps $(APPS); fi
 	$(summary) $(YELLOW) MENUCONFIG $(NC)
 ifdef BATCH_BUILD
 	@echo "Can't run interactive configuration inside non-interactive build process."
@@ -81,20 +80,18 @@ else
 endif
 
 # defconfig creates a default config, based on SDKCONFIG_DEFAULTS if present
-defconfig: env_setup $(KCONFIG_TOOL_DIR)/conf
-	# $(Q)if [ ! -f $(srctree)/apps/Kconfig.app ]; then echo "GEN    App Kconfig"; $(srctree)/tools/scripts/gen_app_kconfig.sh $(srctree)/apps $(APPS); fi
+defconfig: env_setup $(KCONFIG_TOOL_DIR)/conf toolchain
 	$(summary) $(YELLOW) DEFCONFIG $(NC)
 ifneq ("$(wildcard $(SDKCONFIG_DEFAULTS))","")
 	cat $(SDKCONFIG_DEFAULTS) >> $(SDKCONFIG)  # append defaults to sdkconfig, will override existing values
 endif
 	$(call RunConf,conf --olddefconfig)
 
-%_defconfig: env_setup $(KCONFIG_TOOL_DIR)/conf
+%_defconfig: env_setup $(KCONFIG_TOOL_DIR)/conf toolchain
 	@echo -e $(RED)"new target(%_defconfig): $(@)" $(NC)
 	$(call RunConf,conf --defconfig=$(srctree)/configs/$@)
 
 savedefconfig: env_setup $(KCONFIG_TOOL_DIR)/conf $(SDKCONFIG) $(COMPONENT_KCONFIGS)
-	# $(Q)if [ ! -f $(srctree)/apps/Kconfig.app ]; then echo "GEN    App Kconfig"; $(srctree)/tools/scripts/gen_app_kconfig.sh $(srctree)/apps $(APPS); fi
 	@echo -e $(RED)"new target(savedefconfig): $(@)" $(NC)
 	$(call RunConf,conf --$@=defconfig)
 
@@ -122,7 +119,7 @@ config-clean:
 	rm -rf $(BUILD_DIR_BASE)/include/config $(BUILD_DIR_BASE)/include/sdkconfig.h
 
 distclean:
-	rm -fr $(BUILD_OUTPUT) $(KCONFIG_AUTO_FILES)
+	rm -fr $(BUILD_OUTPUT) $(KCONFIG_AUTO_FILES) $(srctree)/tools/toolchain/active
 	$(MAKE) -C $(KCONFIG_TOOL_DIR) distclean
 	$(MAKE) -C $(ASTYLE_TOOL_DIR) clean
 

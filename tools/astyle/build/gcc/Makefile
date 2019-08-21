@@ -188,6 +188,7 @@ javaall:  java javadebug
 
 clean:
 	rm -f $(objdir)/*.o $(bindir)/*astyle*
+	rm -fr $(objdir) $(bindir)
 
 cleanobj:
 	rm -f $(objdir)/*.o

@@ -100,6 +100,7 @@ bin/*
 **/Kconfig.app
 **/Kconfig.linkscript
 **/Kconfig.toolchain
+tools/toolchain/active/*
 sdkconfig
 autoconfig
 out/*

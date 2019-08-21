@@ -35,19 +35,6 @@ do
     extension=${filename##*.}
     filename=${filename%.*}
 
-    # if [ ${extension} = "zip" ]; then
-    #     echo -e "${Yellow} un-tar ${extension} ${NC}"
-    #     # unzip ${args[$i]}
-    # elif [ ${extension} = "bz2" ]; then
-    #     echo -e "${Yellow} un-tar ${extension} ${NC}"
-    #     # tar -xjf ${args[$i]}
-    # else
-    #     echo -e "${Red}unknown compress file ${extension} ${NC}"
-    #     exit -1;
-    # fi
-
-    # description=$(echo ${args[$i]} | sed 's:'"${srctree}"/'::g')
-
     filename=$(echo ${filename} | sed 's:-:_:g')
     filename=$(echo ${filename} | sed 's:\.:_:g')
     echo -e "config TOOLCHAIN_${filename^^}" >> ${out_kconfig}
@@ -71,7 +58,6 @@ echo "  string" >> ${out_kconfig}
 
 for ((i = 1 ; i < $# ; i++));
 do
-    # parentdir=$(dirname ${args[$i]} | sed 's,^\(.*/\)\?\([^/]*\),\2,')
     filename=$(basename -- "${args[$i]}")
     filename=${filename%.*}
 
