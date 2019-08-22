@@ -149,6 +149,14 @@ clean:
 	rm -f $(CLEAN_FILES)
 endif
 
+.PHONY: doxyobj
+
+DOXYOBJ_LST := $(foreach objitem,$(COMPONENT_OBJS), $(addprefix $(COMPONENT_PATH)/,$(objitem)))
+DOXYOBJ_LST := $(DOXYOBJ_LST:.o=.c)
+doxyobj:
+	echo $(DOXYOBJ_LST) > doxyobj.lst
+
+
 # Include all dependency files already generated
 -include $(COMPONENT_OBJS:.o=.d)
 

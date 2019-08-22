@@ -135,11 +135,14 @@ astyle:
 	$(Q)if [ ! -f $(ASTYLE) ]; then echo "Build astyle"; CXX=$(HOSTCXX) CC=$(HOSTCC) LD=$(HOSTLD) CFLAGS= $(MAKE) -C $(ASTYLE_TOOL_DIR); fi
 	@cd $(srctree)
 
-DOXYGEN := @cat
-docs:
+DOXYOBJ_FILES :=
+DOXYGEN := @doxygen
+docs: doxyfile.inc
 	@echo -e $(YELLOW) "Running doxygen to create documentations" $(NC)
-	$(DOXYGEN) $(srctree)/tools/Doxyfile
+	@mkdir -p $(srctree)/doc/html
+	$(DOXYGEN) $(srctree)/tools/scripts/doxyfile.mk > doxy.log 2>&1
 
+export DOXYGEN DOXYOBJ_FILES
 #===========================================================================
 
 
@@ -415,6 +418,11 @@ $(APP_BIN): $(APP_ELF)
 	$(summary) $(RED) "TODO: elf to bin" $(NC)
 	# @$(OBJCOPY) $(OBJCOPY_FLAGS) $< $@
 
+doxyfile.inc: $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/$(libcomp)-doxyobj)
+	echo INPUT = $(COMPONENT_DIRS) > doxyfile.inc
+	echo OUTPUT_DIRECTORY = $(srctree)/doc/html >> doxyfile.inc
+	echo HTML_OUTPUT = $(srctree)/doc/html >> doxyfile.inc
+	echo FILE_PATTERNS = *.h *.c $(DOXYOBJ_FILES) >> doxyfile.inc
 
 # Generation of $(APP_BIN) from $(APP_ELF) is added by the esptool
 # component's Makefile.projbuild
@@ -449,7 +457,7 @@ endef
 # $(2) - name of component
 #
 define GenerateComponentTargets
-.PHONY: $(2)-build $(2)-clean
+.PHONY: $(2)-build $(2)-clean $(2)-doxyobj
 
 $(2)-build:
 	$(call ComponentMake,$(1),$(2)) build
@@ -457,6 +465,10 @@ $(2)-build:
 $(2)-clean:
 	$(summary) $(GREEN) "clean $(2)" $(NC)
 	$(call ComponentMake,$(1),$(2)) clean
+
+$(BUILD_DIR_BASE)/$(2)/$(2)-doxyobj:
+	$(summary) $(GREEN) "Gen $(2) doc" $(NC)
+	$(call ComponentMake,$(1),$(2)) doxyobj
 
 $(BUILD_DIR_BASE)/$(2):
 	@mkdir -p $(BUILD_DIR_BASE)/$(2)

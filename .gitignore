@@ -103,4 +103,8 @@ bin/*
 tools/toolchain/active/*
 sdkconfig
 autoconfig
+**/doxyfile.inc
+**/doxy.log
 out/*
+doc/html/*
+**/doxygen_sqlite3.db
