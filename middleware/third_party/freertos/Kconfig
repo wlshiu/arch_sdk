@@ -3,12 +3,22 @@
 # see doc/kconfig-language.txt.
 #
 
-menu "FreeRTOS"
+menu "freertos"
 
-    config FREERTOS_HEAP_SIZE
-        int "The size of individual heap size (Bytes)"
-        default "0"
+    config ENABLE_FREERTOS
+        bool "enable freertos module"
+        default n
         ---help---
-            The size of individual heap size. 0 indicates to use global heap management.
+            enable freertos or not.
+
+    if ENABLE_FREERTOS
+
+        config FREERTOS_HEAP_SIZE
+            int "The size of individual heap size (Bytes)"
+            default "0"
+            ---help---
+                The size of individual heap size. 0 indicates to use global heap management.
+
+    endif
 
 endmenu

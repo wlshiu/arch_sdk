@@ -1,0 +1,15 @@
+#
+# For a description of the syntax of this configuration file,
+# see doc/kconfig-language.txt.
+#
+
+
+menu "json"
+
+    config ENABLE_JSON
+        bool "enable json module"
+        default n
+        ---help---
+            enable json or not.
+
+endmenu
