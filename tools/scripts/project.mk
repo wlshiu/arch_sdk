@@ -91,6 +91,15 @@ TOOLCHAINS += $(sort $(foreach toolchainsrcdir,$(TOOLCHAIN_DIRS),$(wildcard $(to
 export TOOLCHAINS
 
 # ---------------------------------------------------------------------------
+# list devices
+# ---------------------------------------------------------------------------
+DEVICE_DIRS := \
+	$(srctree)/device
+
+DEVICES := $(sort $(foreach devdir,$(DEVICE_DIRS),$(dir $(wildcard $(devdir)/*/Kconfig))))
+DEVICES := $(notdir $(foreach app,$(DEVICES),$(lastword $(subst /, ,$(app)))))
+export DEVICES
+# ---------------------------------------------------------------------------
 # Set variables common to both project & component
 # ---------------------------------------------------------------------------
 include $(srctree)/tools/scripts/common.mk
@@ -110,6 +119,7 @@ endif
 
 KCONFIG_AUTO_FILES := \
 	$(srctree)/device/Kconfig.linkscript \
+	$(srctree)/device/Kconfig.devices \
 	$(srctree)/tools/toolchain/Kconfig.toolchain \
 	$(srctree)/apps/Kconfig.app
 
@@ -121,6 +131,7 @@ info:
 
 env_setup:
 	$(Q)if [ ! -f $(srctree)/device/Kconfig.linkscript ]; then echo "GEN    Link-Script Kconfig"; $(srctree)/tools/scripts/gen_ld_kconfig.sh $(srctree)/device $(LINK_SCRIPTS); fi
+	$(Q)if [ ! -f $(srctree)/device/Kconfig.devices ]; then echo "GEN    Device Kconfig"; $(srctree)/tools/scripts/gen_device_kconfig.sh $(srctree)/device $(DEVICES); fi
 	$(Q)if [ ! -f $(srctree)/apps/Kconfig.app ]; then echo "GEN    App Kconfig"; $(srctree)/tools/scripts/gen_app_kconfig.sh $(srctree)/apps $(APPS); fi
 	$(Q)if [ ! -f $(srctree)/tools/toolchain/Kconfig.toolchain ]; then echo "GEN    Tool-chain Kconfig"; $(srctree)/tools/scripts/gen_toolchain_kconfig.sh $(srctree)/tools/toolchain $(TOOLCHAINS); fi
 # ---------------------------------------------------------------------------
@@ -166,7 +177,6 @@ export COMMON_MAKEFILES
 # The project Makefile can override these component dirs, or define extra component directories.
 COMPONENT_DIRS ?= $(PROJECT_PATH)/libs \
 				$(EXTRA_MODULE_DIRS) \
-				$(srctree)/device \
 				$(srctree)/middleware/third_party \
 				$(srctree)/middleware/prebuild
 
@@ -208,6 +218,8 @@ endif
 endef
 
 $(foreach comp,$(COMPONENTS),$(eval $(call filterConfigComponents,$(shell echo $(subst .,_,$(comp)) | tr a-z A-Z),$(comp),CONFIG_ENABLE_COMPONENTS)))
+
+# TODO: add target device to CONFIG_ENABLE_COMPONENTS
 #===========================================================================
 
 # A component is buildable if it has a component.mk makefile in it
@@ -322,7 +334,7 @@ COMMON_WARNING_FLAGS = -Wall -Werror=all \
 # Flags which control code generation and dependency generation, both for C and C++
 COMMON_FLAGS = \
 	$(CPU_FLAGS) \
-	-include $(BUILD_DIR_BASE)/include/sdkconfig.h \
+	-include $(BUILD_DIR_BASE)/include/autoconfig.h \
 	-ffunction-sections -fdata-sections \
 	-fstrict-volatile-bitfields \
 	-nostdlib

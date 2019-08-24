@@ -1,0 +1,9 @@
+#
+# For a description of the syntax of this configuration file,
+# see doc/kconfig-language.txt.
+#
+
+config ENABLE_CMSIS
+    bool
+    default y
+
