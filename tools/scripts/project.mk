@@ -209,6 +209,8 @@ COMPONENT_PATHS += $(abspath $(SRCDIRS))
 # ---------------------------------------------------------------------------
 # filter components with CONFIG_ENABLE_xxx
 # ---------------------------------------------------------------------------
+DEVICE_COMPONENT_PATHS := $(foreach comp,$(DEVICES),$(firstword $(foreach dir,$(srctree)/device,$(wildcard $(dir)/$(comp)))))
+
 CONFIG_ENABLE_COMPONENTS :=
 
 define filterConfigComponents
@@ -218,12 +220,12 @@ endif
 endef
 
 $(foreach comp,$(COMPONENTS),$(eval $(call filterConfigComponents,$(shell echo $(subst .,_,$(comp)) | tr a-z A-Z),$(comp),CONFIG_ENABLE_COMPONENTS)))
-
-# TODO: add target device to CONFIG_ENABLE_COMPONENTS
+$(foreach comp,$(DEVICES),$(eval $(call filterConfigComponents,$(shell echo $(subst .,_,$(comp)) | tr a-z A-Z),$(comp),CONFIG_ENABLE_COMPONENTS)))
 #===========================================================================
 
 # A component is buildable if it has a component.mk makefile in it
 CONFIG_ENABLE_COMPONENT_PATHS := $(foreach comp,$(CONFIG_ENABLE_COMPONENTS),$(firstword $(foreach dir,$(COMPONENT_DIRS),$(wildcard $(dir)/$(comp)))))
+CONFIG_ENABLE_COMPONENT_PATHS += $(foreach comp,$(CONFIG_ENABLE_COMPONENTS),$(firstword $(foreach dir,$(srctree)/device,$(wildcard $(dir)/$(comp)))))
 COMPONENT_PATHS_BUILDABLE := $(foreach cp,$(CONFIG_ENABLE_COMPONENT_PATHS),$(if $(wildcard $(cp)/component.mk),$(cp)))
 
 # If TESTS_ALL set to 1, set TEST_COMPONENTS to all components
@@ -296,7 +298,7 @@ CPU_FLAGS := -marm -mlittle-endian -mthumb -mcpu=cortex-m4 -march=armv7e-m
 
 # Set default LDFLAGS
 LDFLAGS ?= -nostdlib \
-	$(addprefix -L$(BUILD_DIR_BASE)/,$(COMPONENTS) $(TEST_COMPONENT_NAMES)) \
+	$(addprefix -L$(BUILD_DIR_BASE)/,$(COMPONENTS) $(DEVICES) $(TEST_COMPONENT_NAMES)) \
 	$(addprefix -L$(BUILD_DIR_BASE)/,$(PROJECT_NAME) ) \
 	$(EXTRA_LDFLAGS) \
 	-Wl,--gc-sections	\
@@ -489,6 +491,7 @@ define GenerateComponentTargets
 .PHONY: $(2)-build $(2)-clean $(2)-doxyobj
 
 $(2)-build:
+	$(summary) $(YELLOW) build $(2) $(NC)
 	$(call ComponentMake,$(1),$(2)) build
 
 $(2)-clean:
