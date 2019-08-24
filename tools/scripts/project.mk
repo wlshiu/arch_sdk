@@ -134,6 +134,7 @@ astyle:
 	@echo -e $(YELLOW) "Format Syntax..." $(NC)
 	$(Q)if [ ! -f $(ASTYLE) ]; then echo "Build astyle"; CXX=$(HOSTCXX) CC=$(HOSTCC) LD=$(HOSTLD) CFLAGS= $(MAKE) -C $(ASTYLE_TOOL_DIR); fi
 	@cd $(srctree)
+	@echo -e $(RED)"Not yet" $(NC)
 
 DOXYOBJ_FILES :=
 DOXYGEN := @doxygen
@@ -194,8 +195,24 @@ export COMPONENTS
 COMPONENT_PATHS := $(foreach comp,$(COMPONENTS),$(firstword $(foreach dir,$(COMPONENT_DIRS),$(wildcard $(dir)/$(comp)))))
 COMPONENT_PATHS += $(abspath $(SRCDIRS))
 
+#===========================================================================
+# ---------------------------------------------------------------------------
+# filter components with CONFIG_ENABLE_xxx
+# ---------------------------------------------------------------------------
+CONFIG_ENABLE_COMPONENTS :=
+
+define filterConfigComponents
+ifeq ($$(CONFIG_ENABLE_$(1)),y)
+$(3) += $(2)
+endif
+endef
+
+$(foreach comp,$(COMPONENTS),$(eval $(call filterConfigComponents,$(shell echo $(subst .,_,$(comp)) | tr a-z A-Z),$(comp),CONFIG_ENABLE_COMPONENTS)))
+#===========================================================================
+
 # A component is buildable if it has a component.mk makefile in it
-COMPONENT_PATHS_BUILDABLE := $(foreach cp,$(COMPONENT_PATHS),$(if $(wildcard $(cp)/component.mk),$(cp)))
+CONFIG_ENABLE_COMPONENT_PATHS := $(foreach comp,$(CONFIG_ENABLE_COMPONENTS),$(firstword $(foreach dir,$(COMPONENT_DIRS),$(wildcard $(dir)/$(comp)))))
+COMPONENT_PATHS_BUILDABLE := $(foreach cp,$(CONFIG_ENABLE_COMPONENT_PATHS),$(if $(wildcard $(cp)/component.mk),$(cp)))
 
 # If TESTS_ALL set to 1, set TEST_COMPONENTS to all components
 ifeq ($(TESTS_ALL),1)
