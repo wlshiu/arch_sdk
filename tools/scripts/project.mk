@@ -31,6 +31,8 @@ help:
 	@echo "  make app-list              - List the executable app"
 	@echo "  make app-clean             - Clean just the app"
 	@echo ""
+	@echo "  make list                  - List component libraries"
+	@echo ""
 	@echo "  make tags/TAGS				- Generate tags file for editors"
 	@echo "  make cscope				- Generate cscope index"
 	@echo "  make gtags					- Generate GNU GLOBAL index"
@@ -584,6 +586,9 @@ tags TAGS cscope gtags:
 # ---------------------------------------------------------------------------
 app-list:
 	@echo $(APPS)
+
+list:
+	@echo $(COMPONENT_LIBRARIES) | sed 's/\s\+/\n/g'
 #===========================================================================
 
 # NB: this ordering is deliberate (app-clean before config-clean),
