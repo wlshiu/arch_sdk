@@ -97,8 +97,18 @@ DEVICE_DIRS := \
 	$(srctree)/device
 
 DEVICES := $(sort $(foreach devdir,$(DEVICE_DIRS),$(dir $(wildcard $(devdir)/*/Kconfig))))
-DEVICES := $(notdir $(foreach app,$(DEVICES),$(lastword $(subst /, ,$(app)))))
+DEVICES := $(notdir $(foreach devdir,$(DEVICES),$(lastword $(subst /, ,$(devdir)))))
 export DEVICES
+
+# ---------------------------------------------------------------------------
+# list core images
+# ---------------------------------------------------------------------------
+IMAGE_DIRS := \
+	$(srctree)/core_img
+
+CORE_IMAGES := $(sort $(foreach imgdir,$(IMAGE_DIRS),$(wildcard $(imgdir)/*.bin)))
+export CORE_IMAGES
+
 # ---------------------------------------------------------------------------
 # Set variables common to both project & component
 # ---------------------------------------------------------------------------
@@ -120,6 +130,7 @@ endif
 KCONFIG_AUTO_FILES := \
 	$(srctree)/device/Kconfig.linkscript \
 	$(srctree)/device/Kconfig.devices \
+	$(srctree)/core_img/Kconfig.imgs \
 	$(srctree)/tools/toolchain/Kconfig.toolchain \
 	$(srctree)/apps/Kconfig.app
 
@@ -132,6 +143,7 @@ info:
 env_setup:
 	$(Q)if [ ! -f $(srctree)/device/Kconfig.linkscript ]; then echo "GEN    Link-Script Kconfig"; $(srctree)/tools/scripts/gen_ld_kconfig.sh $(srctree)/device $(LINK_SCRIPTS); fi
 	$(Q)if [ ! -f $(srctree)/device/Kconfig.devices ]; then echo "GEN    Device Kconfig"; $(srctree)/tools/scripts/gen_device_kconfig.sh $(srctree)/device $(DEVICES); fi
+	$(Q)if [ ! -f $(srctree)/core_img/Kconfig.imgs ]; then echo "GEN    Images Kconfig"; $(srctree)/tools/scripts/gen_img_kconfig.sh $(srctree)/core_img $(CORE_IMAGES); fi
 	$(Q)if [ ! -f $(srctree)/apps/Kconfig.app ]; then echo "GEN    App Kconfig"; $(srctree)/tools/scripts/gen_app_kconfig.sh $(srctree)/apps $(APPS); fi
 	$(Q)if [ ! -f $(srctree)/tools/toolchain/Kconfig.toolchain ]; then echo "GEN    Tool-chain Kconfig"; $(srctree)/tools/scripts/gen_toolchain_kconfig.sh $(srctree)/tools/toolchain $(TOOLCHAINS); fi
 # ---------------------------------------------------------------------------
@@ -221,12 +233,31 @@ endef
 
 $(foreach comp,$(COMPONENTS),$(eval $(call filterConfigComponents,$(shell echo $(subst .,_,$(comp)) | tr a-z A-Z),$(comp),CONFIG_ENABLE_COMPONENTS)))
 $(foreach comp,$(DEVICES),$(eval $(call filterConfigComponents,$(shell echo $(subst .,_,$(comp)) | tr a-z A-Z),$(comp),CONFIG_ENABLE_COMPONENTS)))
+
+# ---------------------------------------------------------------------------
+# filter core images with CONFIG_ENABLE_xxx
+# ---------------------------------------------------------------------------
+IMG_FLAGS :=
+SECTION_NAMES :=
+$(eval IMG_NUM=$(shell echo $$(($(CONFIG_CORE_IMG_NUM)+1))))
+
+define filterConfigImgs
+ifeq ($$(CONFIG_INSERT_CORE_IMAGE_$(1)),y)
+$(2) += --add-section $$(CONFIG_SECTION_NAME_$(1))=$(addprefix $(srctree)/core_img/,$$(CONFIG_IMAGE_NAME_$(1)))
+$(3) += $$(CONFIG_SECTION_NAME_$(1))
+endif
+endef
+
+$(foreach idx,$(shell seq 1 ${IMG_NUM}),$(eval $(call filterConfigImgs,$(idx),IMG_FLAGS,SECTION_NAMES)))
+IMG_FLAGS := $(subst ",,$(IMG_FLAGS))
+
 #===========================================================================
 
 # A component is buildable if it has a component.mk makefile in it
 CONFIG_ENABLE_COMPONENT_PATHS := $(foreach comp,$(CONFIG_ENABLE_COMPONENTS),$(firstword $(foreach dir,$(COMPONENT_DIRS),$(wildcard $(dir)/$(comp)))))
 CONFIG_ENABLE_COMPONENT_PATHS += $(foreach comp,$(CONFIG_ENABLE_COMPONENTS),$(firstword $(foreach dir,$(srctree)/device,$(wildcard $(dir)/$(comp)))))
 COMPONENT_PATHS_BUILDABLE := $(foreach cp,$(CONFIG_ENABLE_COMPONENT_PATHS),$(if $(wildcard $(cp)/component.mk),$(cp)))
+COMPONENT_PATHS_BUILDABLE += $(SRCDIRS)
 
 # If TESTS_ALL set to 1, set TEST_COMPONENTS to all components
 ifeq ($(TESTS_ALL),1)
@@ -297,19 +328,22 @@ toolchain-clean:
 CPU_FLAGS := -marm -mlittle-endian -mthumb -mcpu=cortex-m4 -march=armv7e-m
 
 # Set default LDFLAGS
-LDFLAGS ?= -nostdlib \
+LDFLAGS ?= \
 	$(addprefix -L$(BUILD_DIR_BASE)/,$(COMPONENTS) $(DEVICES) $(TEST_COMPONENT_NAMES)) \
 	$(addprefix -L$(BUILD_DIR_BASE)/,$(PROJECT_NAME) ) \
 	$(EXTRA_LDFLAGS) \
+	-specs=nosys.specs \
 	-Wl,--gc-sections	\
 	-Wl,-static	\
 	-Wl,--start-group	\
 	$(COMPONENT_LDFLAGS) \
-	-lgcc \
-	-lstdc++ \
 	-Wl,--end-group \
 	-Wl,-EL
 
+LDFLAGS += -lc -lm -lnosys
+LDFLAGS += -T$(CONFIG_TARGET_LD_FILE)
+
+# LDFLAGS += -nostdlib -lstdc++ -lgcc
 # LDFLAGS += -u call_user_start_cpu0
 
 # Set default CPPFLAGS, CFLAGS, CXXFLAGS
@@ -338,9 +372,9 @@ COMMON_FLAGS = \
 	$(CPU_FLAGS) \
 	-include $(BUILD_DIR_BASE)/include/autoconfig.h \
 	-ffunction-sections -fdata-sections \
-	-fstrict-volatile-bitfields \
-	-nostdlib
+	-fstrict-volatile-bitfields
 
+# COMMON_FLAGS += -nostdlib
 # COMMON_FLAGS += -mlongcalls
 
 # Optimization flags are set based on menuconfig choice
@@ -410,6 +444,7 @@ export CC CXX LD AR OBJCOPY SIZE
 # PYTHON=$(call dequote,$(CONFIG_PYTHON))
 
 # the app is the main executable built by the project
+APP_ELF_ORG:=$(BUILD_DIR_BASE)/$(PROJECT_NAME).elf.org
 APP_ELF:=$(BUILD_DIR_BASE)/$(PROJECT_NAME).elf
 APP_MAP:=$(APP_ELF:.elf=.map)
 APP_BIN:=$(APP_ELF:.elf=.bin)
@@ -440,14 +475,15 @@ COMPONENT_LIBRARIES = $(filter $(notdir $(COMPONENT_PATHS_BUILDABLE)) $(TEST_COM
 #
 # also depends on additional dependencies (linker scripts & binary libraries)
 # stored in COMPONENT_LINKER_DEPS, built via component.mk files' COMPONENT_ADD_LINKER_DEPS variable
-$(APP_ELF): $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/lib$(libcomp).a) $(COMPONENT_LINKER_DEPS)
+$(APP_ELF_ORG): $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/lib$(libcomp).a) $(COMPONENT_LINKER_DEPS)
 	$(summary) $(GREEN)  LD $(notdir $@) $(NC)
 	$(CC) $(LDFLAGS) -o $@ -Wl,-Map=$(APP_MAP)
 
-$(APP_BIN): $(APP_ELF)
+$(APP_BIN): $(APP_ELF_ORG)
 	$(summary) $(YELLOW) "Post Build Steps ................."$(NC)
-	$(summary) $(RED) "TODO: elf to bin" $(NC)
-	# @$(OBJCOPY) $(OBJCOPY_FLAGS) $< $@
+	@$(OBJCOPY) $(IMG_FLAGS) $(APP_ELF_ORG) $(APP_ELF)
+	$(summary) $(GREEN) " insert section: $(SECTION_NAMES)"$(NC)
+	@$(OBJCOPY) $(OBJCOPY_FLAGS) $< $@
 
 doxyfile.inc: $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/$(libcomp)-doxyobj)
 	echo INPUT = $(COMPONENT_DIRS) > doxyfile.inc

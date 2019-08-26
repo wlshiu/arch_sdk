@@ -101,6 +101,7 @@ bin/*
 **/Kconfig.linkscript
 **/Kconfig.toolchain
 **/Kconfig.devices
+**/Kconfig.imgs
 tools/toolchain/active/*
 sdkconfig
 autoconfig

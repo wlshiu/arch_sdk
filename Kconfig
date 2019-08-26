@@ -67,3 +67,7 @@ menu "Device conifg"
     source device/CMSIS/Kconfig
     source device/Kconfig.devices
 endmenu
+
+menu "Core Images"
+    source core_img/Kconfig.imgs
+endmenu
