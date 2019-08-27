@@ -17,10 +17,11 @@ all: info env_setup all_binaries
 
 help:
 	@echo "----------------------------------------------------------------------"
-	@echo "Welcome to VT build system. Some useful make targets:"
+	@echo "Welcome to build system. Some useful make targets:"
 	@echo ""
 	@echo "  make menuconfig            - Configure project"
 	@echo "  make defconfig             - Set defaults for all new configuration options"
+	@echo "  make xxx_defconfig         - Use default configuration options which is in $(srctree)/configs directory"
 	@echo ""
 	@echo "  make all                   - Build app, bootloader, partition table"
 	@echo "  make clean                 - Remove most generated files but keep the config and"
@@ -32,15 +33,22 @@ help:
 	@echo "  make app-clean             - Clean just the app"
 	@echo ""
 	@echo "  make list                  - List component libraries"
+	@echo "  make list-config           - List config files in $(srctree)/configs"
 	@echo ""
-	@echo "  make tags/TAGS				- Generate tags file for editors"
-	@echo "  make cscope				- Generate cscope index"
-	@echo "  make gtags					- Generate GNU GLOBAL index"
+	@echo "  make tags/TAGS             - Generate tags file for editors"
+	@echo "  make cscope                - Generate cscope index"
+	@echo "  make gtags                 - Generate GNU GLOBAL index"
 	@echo ""
 	@echo "  make astyle directory      - Format syntax with directory"
 	@echo ""
-	@echo "  make docs 					- Generate documentations"
+	@echo "  make docs                  - Generate documentations"
 	@echo ""
+	@echo "Development functions"
+	@echo "  make size                  - List section size infomation and output *.nm file"
+	@echo "  make objdump               - Disassemble objects and output *.objdump file"
+	@echo ""
+	@echo "  make V=0|1 [targets] 0 => quiet build (default), 1 => verbose build"
+	@echo "  make O=dir [targets] Locate all output files in 'dir', including autoconfig"
 	@echo "----------------------------------------------------------------------"
 
 # dependency checks
@@ -169,6 +177,11 @@ docs: doxyfile.inc
 	$(DOXYGEN) $(srctree)/tools/scripts/doxyfile.mk > doxy.log 2>&1
 
 export DOXYGEN DOXYOBJ_FILES
+
+list-config:
+	$(summary) $(YELLOW) "List configs in $(srctree)/configs" $(NC)
+	@ls $(srctree)/configs/*_defconfig | sed 's:$(srctree)/configs/::g' | sort
+
 #===========================================================================
 
 
@@ -313,7 +326,7 @@ endif
 export TOOLCHAIN_PATH
 
 all:
-	@echo -e $(YELLOW) "Build done..."$(NC)
+	@echo -e $(YELLOW) "Done..."$(NC)
 
 toolchain:
 	$(Q)if [ ! -z $(CONFIG_TARGET_TOOLCHAIN_PATH) ] && [ ! -d $(srctree)/tools/toolchain/active ]; then \
@@ -432,15 +445,19 @@ CXX := $(call dequote,$(CONFIG_TOOLPREFIX))c++
 LD := $(call dequote,$(CONFIG_TOOLPREFIX))ld
 AR := $(call dequote,$(CONFIG_TOOLPREFIX))ar
 OBJCOPY := $(call dequote,$(CONFIG_TOOLPREFIX))objcopy
+OBJDUMP := $(call dequote,$(CONFIG_TOOLPREFIX))objdump
 SIZE := $(call dequote,$(CONFIG_TOOLPREFIX))size
+NM := $(call dequote,$(CONFIG_TOOLPREFIX))nm
 
 CC := $(TOOLCHAIN_PATH)$(CC)
 CXX := $(TOOLCHAIN_PATH)$(CXX)
 LD := $(TOOLCHAIN_PATH)$(LD)
 AR := $(TOOLCHAIN_PATH)$(AR)
 OBJCOPY := $(TOOLCHAIN_PATH)$(OBJCOPY)
+OBJDUMP := $(TOOLCHAIN_PATH)$(OBJDUMP)
 SIZE := $(TOOLCHAIN_PATH)$(SIZE)
-export CC CXX LD AR OBJCOPY SIZE
+NM := $(TOOLCHAIN_PATH)$(NM)
+export CC CXX LD AR OBJCOPY SIZE OBJDUMP NM
 
 # TODO: python
 # PYTHON=$(call dequote,$(CONFIG_PYTHON))
@@ -450,6 +467,8 @@ APP_ELF_ORG:=$(BUILD_DIR_BASE)/$(PROJECT_NAME).elf.org
 APP_ELF:=$(BUILD_DIR_BASE)/$(PROJECT_NAME).elf
 APP_MAP:=$(APP_ELF:.elf=.map)
 APP_BIN:=$(APP_ELF:.elf=.bin)
+APP_SYMBOL:=$(APP_ELF:.elf=.symbol)
+APP_OBJDUMP:=$(APP_ELF:.elf=.objdump)
 
 # Include any Makefile.projbuild file letting components add
 # configuration at the project level
@@ -486,6 +505,7 @@ $(APP_BIN): $(APP_ELF_ORG)
 	@$(OBJCOPY) $(IMG_FLAGS) $(APP_ELF_ORG) $(APP_ELF)
 	$(summary) $(GREEN) " insert section: $(SECTION_NAMES)"$(NC)
 	@$(OBJCOPY) $(OBJCOPY_FLAGS) $< $@
+
 
 doxyfile.inc: $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/$(libcomp)-doxyobj)
 	echo INPUT = $(COMPONENT_DIRS) > doxyfile.inc
@@ -566,10 +586,7 @@ $(foreach component,$(TEST_COMPONENT_PATHS),$(eval $(call GenerateComponentTarge
 
 app-clean: $(addsuffix -clean,$(notdir $(COMPONENT_PATHS_BUILDABLE)))
 	$(summary) RM $(APP_ELF)
-	rm -f $(APP_ELF) $(APP_BIN) $(APP_MAP)
-
-size: $(APP_ELF)
-	$(SIZE) $(APP_ELF)
+	rm -f $(APP_ELF) $(APP_ELF_ORG) $(APP_BIN) $(APP_MAP) $(APP_SYMBOL) $(APP_OBJDUMP)
 
 #===========================================================================
 # ---------------------------------------------------------------------------
@@ -589,6 +606,24 @@ app-list:
 
 list:
 	@echo $(COMPONENT_LIBRARIES) | sed 's/\s\+/\n/g'
+
+# ---------------------------------------------------------------------------
+# development functions
+# ---------------------------------------------------------------------------
+size: toolchain $(APP_BIN)
+	@echo ""
+	@echo -e $(YELLOW) "Size information"$(NC)
+	@echo -e $(YELLOW) " Log to $(APP_SYMBOL)"$(NC)
+	$(SIZE) -At -x $(APP_ELF)
+	$(SIZE) -At -x $(APP_ELF) > $(APP_SYMBOL)
+	@echo -e "\nSYMBOLS:\n" >> $(APP_SYMBOL)
+	$(NM) -C -nslS -f bsd -t x $(APP_ELF) >> $(APP_SYMBOL)
+
+objdump: toolchain $(APP_BIN)
+	@echo ""
+	@echo -e $(YELLOW) "Objects Dump to $(APP_OBJDUMP)"$(NC)
+	$(OBJDUMP) -Sx $(APP_ELF) > $(APP_OBJDUMP)
+
 #===========================================================================
 
 # NB: this ordering is deliberate (app-clean before config-clean),
