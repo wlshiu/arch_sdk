@@ -67,6 +67,18 @@ gen_mk()
     echo "# Defaults to '.', ie the component directory itself." >> ${output_mk}
     echo "# Override this to specify a different list of directories which contain source files." >> ${output_mk}
     echo -e "COMPONENT_SRCDIRS +=\n" >> ${output_mk}
+
+    echo "###" >> ${output_mk}
+    echo "# set CFLAGS" >> ${output_mk}
+    echo -e "CFLAGS +=\n" >> ${output_mk}
+
+    echo "###" >> ${output_mk}
+    echo "# set CXXFLAGS" >> ${output_mk}
+    echo -e "CXXFLAGS +=\n" >> ${output_mk}
+
+    echo "###" >> ${output_mk}
+    echo "# set LDLAGS" >> ${output_mk}
+    echo -e "LDLAGS +=\n" >> ${output_mk}
 }
 
 if [ ! -d ${module_name} ]; then
@@ -77,3 +89,7 @@ cd ${module_name}
 
 gen_kconfig
 gen_mk
+
+if [ ! -d include ]; then
+    mkdir include
+fi
