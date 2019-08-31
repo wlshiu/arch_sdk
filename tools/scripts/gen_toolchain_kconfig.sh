@@ -27,6 +27,9 @@ echo "  ---help---" >> ${out_kconfig}
 echo "      Select the target tool-chain." >> ${out_kconfig}
 echo -e "\n" >> ${out_kconfig}
 
+echo -e "config TOOLCHAIN_HOST_ENVIRONMENT" >> ${out_kconfig}
+echo -e "  bool \"Host Environment\"\n" >> ${out_kconfig}
+
 for ((i = 1 ; i < $# ; i++));
 do
     filename=$(basename -- "${args[$i]}")
@@ -44,7 +47,7 @@ done
 echo -e "config TOOLCHAIN_CUSTOMER" >> ${out_kconfig}
 echo -e "  bool \"Custom tool-chain\"" >> ${out_kconfig}
 
-echo -e "endchoice\n" >> ${out_kconfig}
+echo -e "\nendchoice\n" >> ${out_kconfig}
 
 echo -e "config TARGET_CUSTOMER_TOOLCHAIN" >> ${out_kconfig}
 echo -e "  string \"Custom tool-chain path\" if TOOLCHAIN_CUSTOMER" >> ${out_kconfig}
@@ -55,6 +58,8 @@ echo -e "    path of tool-chain\n" >> ${out_kconfig}
 
 echo "config TARGET_TOOLCHAIN_PATH" >> ${out_kconfig}
 echo "  string" >> ${out_kconfig}
+
+echo "  default \"\" if TOOLCHAIN_HOST_ENVIRONMENT" >> ${out_kconfig}
 
 for ((i = 1 ; i < $# ; i++));
 do

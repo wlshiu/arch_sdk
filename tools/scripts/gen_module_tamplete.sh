@@ -58,7 +58,7 @@ gen_mk()
     echo -e "COMPONENT_PRIV_INCLUDEDIRS +=\n" >> ${output_mk}
 
     echo "###" >> ${output_mk}
-    echo "# Object files to compile. Default value is a .o file for each source file that is found in COMPONENT_SRCDIRS. " >> ${output_mk}
+    echo "# Object files to compile. Default value is a .o file for each source file that is found in COMPONENT_SRCDIRS." >> ${output_mk}
     echo "# Overriding this list allows you to exclude source files in COMPONENT_SRCDIRS that would otherwise be compiled." >> ${output_mk}
     echo -e "COMPONENT_OBJS :=\n" >> ${output_mk}
 

@@ -12,7 +12,7 @@
 
 
 #include <stdio.h>
-
+#include "json/include/cJSON.h"
 //=============================================================================
 //                  Constant Definition
 //=============================================================================
@@ -38,10 +38,11 @@
 //=============================================================================
 int main(void)
 {
+    cJSON   *pJRoot = 0;
+    pJRoot = cJSON_CreateObject();
+    cJSON_Delete(pJRoot);
+
     printf("Hello world!\n");
     return 0;
 }
-
-
-
 

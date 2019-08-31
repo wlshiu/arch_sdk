@@ -357,6 +357,8 @@ LDFLAGS ?= \
 
 LDFLAGS += -lc -lm -lnosys
 LDFLAGS += -T$(CONFIG_TARGET_LD_FILE)
+LDFLAGS += -L$(srctree)/middleware/prebuild
+
 
 # LDFLAGS += -nostdlib -lstdc++ -lgcc
 # LDFLAGS += -u call_user_start_cpu0
@@ -412,6 +414,11 @@ CFLAGS := $(strip \
 	$(COMMON_WARNING_FLAGS) -Wno-old-style-declaration \
 	$(CFLAGS) \
 	$(EXTRA_CFLAGS))
+
+
+PREBUILD_INC=$(shell find $(srctree)/middleware/prebuild/ -type d -name 'include')
+CFLAGS += $(foreach incpath,$(PREBUILD_INC),$(addprefix -I ,$(incpath))) \
+	-I $(srctree)/middleware/prebuild
 
 # List of flags to pass to C++ compiler
 # If any flags are defined in application Makefile, add them at the end.
