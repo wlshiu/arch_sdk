@@ -5,12 +5,12 @@ Pre-build
 
     - Create your folder by component name
     - Put the header files to `include` folder
-    - Put the per-build lib files (*.a) to root of prebuild folder
+    - Put the per-builded lib files (*.a) to root of `prebuild` folder
 
     ```
     prebuild
-    ├── [your component]
+    ├── [your-component-folder]
     │    └── include
     │         └── *.h
-    └── lib[your component].a
+    └── lib[your-component].a
     ```

@@ -63,6 +63,18 @@ GSYMS
 *.mod*
 *.cmd
 *.bin
+
+# Misc
+*.IAB
+*.IAD
+*.IMB
+*.IMD
+*.PFI
+*.PO
+*.PR
+*.PRI
+*.PS
+*.WK3
 .tmp_versions/
 modules.order
 Module.symvers
