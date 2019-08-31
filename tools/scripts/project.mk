@@ -6,7 +6,7 @@
 #
 
 
-.PHONY: build-components menuconfig defconfig all build clean distclean docs info env_setup all_binaries size tags TAGS cscope gtags toolchain
+.PHONY: build-components menuconfig defconfig all build clean distclean docs info env_setup all_binaries size tags TAGS cscope gtags toolchain release
 all: info env_setup all_binaries
 # see below for recipe of 'all' target
 #
@@ -27,6 +27,8 @@ help:
 	@echo "  make clean                 - Remove most generated files but keep the config and"
 	@echo "                               enough build support to build external modules"
 	@echo "  make distclean             - Remove all generated files + config + various backup files"
+	@echo ""
+	@echo "  make release               - Pack SDK for release"
 	@echo ""
 	@echo "  make app                   - Build just the app"
 	@echo "  make app-list              - List the executable app"
@@ -630,6 +632,12 @@ objdump: toolchain $(APP_BIN)
 	@echo ""
 	@echo -e $(YELLOW) "Objects Dump to $(APP_OBJDUMP)"$(NC)
 	$(OBJDUMP) -Sx $(APP_ELF) > $(APP_OBJDUMP)
+
+# ---------------------------------------------------------------------------
+# pack SDK for release
+# ---------------------------------------------------------------------------
+release:
+	@echo -e $(RED)"new target 'release' (not yet): $(@)" $(NC)
 
 #===========================================================================
 
