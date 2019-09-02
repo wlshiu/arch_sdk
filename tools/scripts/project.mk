@@ -5,8 +5,10 @@
 # together into the final file. If so, PWD is the project dir (we assume).
 #
 
+PHONY := build-components all build clean distclean info env_setup all_binaries
+PHONY += menuconfig defconfig savedefconfig %_defconfig
+PHONY += docs size tags TAGS cscope gtags toolchain release
 
-.PHONY: build-components menuconfig defconfig all build clean distclean docs info env_setup all_binaries size tags TAGS cscope gtags toolchain release
 all: info env_setup all_binaries
 # see below for recipe of 'all' target
 #
@@ -555,7 +557,7 @@ endef
 # $(2) - name of component
 #
 define GenerateComponentTargets
-.PHONY: $(2)-build $(2)-clean $(2)-doxyobj
+PHONY += $(2)-build $(2)-clean $(2)-doxyobj
 
 $(2)-build:
 	$(summary) $(YELLOW) build $(2) $(NC)
@@ -646,3 +648,5 @@ release:
 config-clean: app-clean
 clean: config-clean
 distclean: clean
+
+.PHONY: $(PHONY)

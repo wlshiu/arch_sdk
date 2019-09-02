@@ -24,11 +24,15 @@ $(KCONFIG_TOOL_DIR)/mconf $(KCONFIG_TOOL_DIR)/conf:
 	$(MAKE) -C $(KCONFIG_TOOL_DIR)
 
 #-----------------------------------------------------------------
+PHONY := config-clean distclean defconfig menuconfig savedefconfig %_defconfig
+
 ifeq ("$(wildcard $(SDKCONFIG))","")
 
 ifneq ("$(filter %_defconfig, $(MAKECMDGOALS))","")
 # user defconfig
 SDKCONFIG := $(filter %_defconfig, $(MAKECMDGOALS))
+# XCONFIG := $(filter %_defconfig, $(MAKECMDGOALS))
+# $(XCONFIG): $(SDKCONFIG)
 $(SDKCONFIG): env_setup %_defconfig
 
 else ifeq ("$(filter defconfig, $(MAKECMDGOALS))","")
@@ -113,7 +117,7 @@ menuconfig:
 savedefconfig:
 endif
 
-.PHONY: config-clean distclean defconfig menuconfig savedefconfig
+
 config-clean:
 	$(summary RM CONFIG)
 	rm -rf $(BUILD_DIR_BASE)/include/config $(BUILD_DIR_BASE)/include/autoconfig.h
@@ -123,3 +127,4 @@ distclean:
 	$(MAKE) -C $(KCONFIG_TOOL_DIR) distclean
 	$(MAKE) -C $(ASTYLE_TOOL_DIR) clean
 
+.PHONY: $(PHONY)
