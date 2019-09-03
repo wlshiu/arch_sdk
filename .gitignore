@@ -117,6 +117,7 @@ bin/*
 tools/toolchain/active/*
 sdkconfig
 autoconfig
+*_defconfig
 **/doxyfile.inc
 **/doxy.log
 out/*

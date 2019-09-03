@@ -30,9 +30,8 @@ ifeq ("$(wildcard $(SDKCONFIG))","")
 
 ifneq ("$(filter %_defconfig, $(MAKECMDGOALS))","")
 # user defconfig
-SDKCONFIG := $(filter %_defconfig, $(MAKECMDGOALS))
-# XCONFIG := $(filter %_defconfig, $(MAKECMDGOALS))
-# $(XCONFIG): $(SDKCONFIG)
+XCONFIG := $(filter %_defconfig, $(MAKECMDGOALS))
+$(XCONFIG): $(SDKCONFIG)
 $(SDKCONFIG): env_setup %_defconfig
 
 else ifeq ("$(filter defconfig, $(MAKECMDGOALS))","")
@@ -108,6 +107,7 @@ ifdef BATCH_BUILD  # can't prompt for new config values like on terminal
 endif
 	$(call RunConf,conf --silentoldconfig)
 	touch $(SDKCONFIG_MAKEFILE) $(BUILD_DIR_BASE)/include/autoconfig.h  # ensure newer than autoconfig
+	@echo "" > $(XCONFIG)
 
 else  # "$(MAKE_RESTARTS)" != ""
 # on subsequent make passes, skip config generation entirely
