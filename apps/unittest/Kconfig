@@ -1,0 +1,13 @@
+#
+# For a description of the syntax of this configuration file,
+# see doc/kconfig-language.txt.
+#
+
+menu "unittest"
+
+	config VERSION
+		int "version"
+		default 0
+
+endmenu
+

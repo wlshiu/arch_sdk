@@ -26,6 +26,8 @@ $(KCONFIG_TOOL_DIR)/mconf $(KCONFIG_TOOL_DIR)/conf:
 #-----------------------------------------------------------------
 PHONY := config-clean distclean defconfig menuconfig savedefconfig %_defconfig
 
+XCONFIG := autoconfig
+
 ifeq ("$(wildcard $(SDKCONFIG))","")
 
 ifneq ("$(filter %_defconfig, $(MAKECMDGOALS))","")
@@ -90,13 +92,16 @@ ifneq ("$(wildcard $(SDKCONFIG_DEFAULTS))","")
 endif
 	$(call RunConf,conf --olddefconfig)
 
+
 %_defconfig: env_setup $(KCONFIG_TOOL_DIR)/conf toolchain
 	@echo -e $(RED)"new target(%_defconfig): $(@)" $(NC)
 	$(call RunConf,conf --defconfig=$(srctree)/configs/$@)
 
+
 savedefconfig: env_setup $(KCONFIG_TOOL_DIR)/conf $(SDKCONFIG) $(COMPONENT_KCONFIGS)
 	@echo -e $(RED)"new target(savedefconfig): $(@)" $(NC)
 	$(call RunConf,conf --$@=defconfig)
+
 
 # if neither defconfig or menuconfig are requested, use the GENCONFIG rule to
 # ensure generated config files are up to date
@@ -107,7 +112,8 @@ ifdef BATCH_BUILD  # can't prompt for new config values like on terminal
 endif
 	$(call RunConf,conf --silentoldconfig)
 	touch $(SDKCONFIG_MAKEFILE) $(BUILD_DIR_BASE)/include/autoconfig.h  # ensure newer than autoconfig
-	@echo "" > $(XCONFIG)
+	@if [ ! -z $(XCONFIG) ]; then echo "" > $(XCONFIG); fi
+
 
 else  # "$(MAKE_RESTARTS)" != ""
 # on subsequent make passes, skip config generation entirely
