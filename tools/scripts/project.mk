@@ -7,7 +7,7 @@
 
 PHONY := build-components all build clean distclean info env_setup all_binaries
 PHONY += menuconfig defconfig savedefconfig %_defconfig
-PHONY += docs size tags TAGS cscope gtags toolchain release
+PHONY += docs size tags TAGS cscope gtags toolchain toolchain-clean release
 
 all: info env_setup all_binaries
 # see below for recipe of 'all' target
@@ -25,6 +25,10 @@ help:
 	@echo "  make defconfig             - Set defaults for all new configuration options"
 	@echo "  make xxx_defconfig         - Use default configuration options which is in $(srctree)/configs directory"
 	@echo ""
+	@echo "  make toolchain             - Prepare toolchain if you do not use host environment setting."
+	@echo "                               ps. It should be executed before make compile"
+	@echo "  make toolchain-clean       - Clean toolchain"
+	@echo ""
 	@echo "  make all                   - Build app, bootloader, partition table"
 	@echo "  make clean                 - Remove most generated files but keep the config and"
 	@echo "                               enough build support to build external modules"
@@ -40,8 +44,8 @@ help:
 	@echo "  make list-config           - List config files in $(srctree)/configs"
 	@echo ""
 	@echo "Select unittest of apps"
-	@echo "	 make TEST_COMPONENTS=components-name - Build the unittest with the names of the components having \'test\' subdirectory"
-	@echo "	 make TESTS_ALL=1           - Build the unittest with all the tests for components having \'test\' subdirectory."
+	@echo "  make TEST_COMPONENTS=components-name - Build the unittest with the names of the components having \'test\' subdirectory"
+	@echo "  make TESTS_ALL=1           - Build the unittest with all the tests for components having \'test\' subdirectory."
 	@echo ""
 	@echo "  make tags/TAGS             - Generate tags file for editors"
 	@echo "  make cscope                - Generate cscope index"
