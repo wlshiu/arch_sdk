@@ -7,7 +7,7 @@
 
 PHONY := build-components all build clean distclean info env_setup all_binaries
 PHONY += menuconfig defconfig savedefconfig %_defconfig
-PHONY += docs size tags TAGS cscope gtags toolchain toolchain-clean release
+PHONY += docs size tags TAGS cscope gtags toolchain toolchain-clean release gdb gdb_server
 
 all: info env_setup all_binaries
 # see below for recipe of 'all' target
@@ -367,7 +367,7 @@ LDFLAGS ?= \
 	-Wl,--end-group \
 	-Wl,-EL
 
-LDFLAGS += -lc -lm -lnosys
+LDFLAGS += -lc -lm -lnosys $(CPU_FLAGS)
 LDFLAGS += -T$(CONFIG_TARGET_LD_FILE)
 LDFLAGS += -L$(srctree)/middleware/prebuild
 
@@ -467,6 +467,7 @@ OBJCOPY := $(call dequote,$(CONFIG_TOOLPREFIX))objcopy
 OBJDUMP := $(call dequote,$(CONFIG_TOOLPREFIX))objdump
 SIZE := $(call dequote,$(CONFIG_TOOLPREFIX))size
 NM := $(call dequote,$(CONFIG_TOOLPREFIX))nm
+GDB := $(call dequote,$(CONFIG_TOOLPREFIX))gdb
 
 CC := $(TOOLCHAIN_PATH)$(CC)
 CXX := $(TOOLCHAIN_PATH)$(CXX)
@@ -476,7 +477,8 @@ OBJCOPY := $(TOOLCHAIN_PATH)$(OBJCOPY)
 OBJDUMP := $(TOOLCHAIN_PATH)$(OBJDUMP)
 SIZE := $(TOOLCHAIN_PATH)$(SIZE)
 NM := $(TOOLCHAIN_PATH)$(NM)
-export CC CXX LD AR OBJCOPY SIZE OBJDUMP NM
+GDB := $(TOOLCHAIN_PATH)$(GDB)
+export CC CXX LD AR OBJCOPY SIZE OBJDUMP NM GDB
 
 # TODO: python
 # PYTHON=$(call dequote,$(CONFIG_PYTHON))
@@ -644,10 +646,23 @@ objdump: toolchain $(APP_BIN)
 	$(OBJDUMP) -Sx $(APP_ELF) > $(APP_OBJDUMP)
 
 # ---------------------------------------------------------------------------
+# GDB
+# ---------------------------------------------------------------------------
+gdb_server:
+	$(summary) $(YELLOW) "Start GDB server" $(NC)
+	$(Q)$(srctree)/tools/scripts/gdb_server.sh
+
+gdb: $(APP_ELF)
+	$(summary) $(YELLOW) "Run GDB" $(NC)
+	$(summary) $(GREEN) "  target='$(APP_ELF)'" $(NC)
+	$(Q)$(GDB) --dierectory=$(srctree) --command=$(srctree)/tools/scripts/gdb_jlink.gdbinit $(APP_ELF)
+
+# ---------------------------------------------------------------------------
 # pack SDK for release
 # ---------------------------------------------------------------------------
 release:
 	@echo -e $(RED)"new target 'release' (not yet): $(@)" $(NC)
+
 
 #===========================================================================
 
