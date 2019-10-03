@@ -9,8 +9,6 @@ set -e
 args=("$@")
 out_kconfig="${args[0]}/Kconfig.imgs"
 
-# /d/working/_vango/my_code/arch_sdk/core_img/1183250374.jpg /d/working/_vango/my_code/arch_sdk/core_img/1183250375.jpg
-
 echo "#" > ${out_kconfig}
 echo "# Automatically generated file; DO NOT EDIT." >> ${out_kconfig}
 echo -e "#\n" >> ${out_kconfig}

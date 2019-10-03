@@ -70,6 +70,29 @@ $(warning "Build system only supports GNU Make versions 3.81 or newer. You may s
 endif
 endif
 
+# disable built-in make rules, makes debugging saner
+MAKEFLAGS_OLD := $(MAKEFLAGS)
+MAKEFLAGS +=-rR
+
+# Default path to the project: we assume the Makefile including this file
+# is in the project directory
+ifndef PROJECT_PATH
+PROJECT_PATH := $(abspath $(dir $(firstword $(MAKEFILE_LIST))))
+export PROJECT_PATH
+endif
+
+# A list of the "common" makefiles, to use as a target dependency
+COMMON_MAKEFILES := $(abspath $(srctree)/tools/scripts/project.mk $(srctree)/tools/scripts/common.mk $(srctree)/tools/scripts/component_wrapper.mk)
+export COMMON_MAKEFILES
+
+# Component directories. These directories are searched for components.
+# The project Makefile can override these component dirs, or define extra component directories.
+COMPONENT_DIRS ?= $(PROJECT_PATH)/libs \
+				$(EXTRA_MODULE_DIRS) \
+				$(srctree)/middleware/third_party \
+				$(srctree)/middleware/prebuild
+
+export COMPONENT_DIRS
 
 #===========================================================================
 CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
@@ -154,6 +177,7 @@ KCONFIG_AUTO_FILES := \
 	$(srctree)/device/Kconfig.devices \
 	$(srctree)/core_img/Kconfig.imgs \
 	$(srctree)/tools/toolchain/Kconfig.toolchain \
+	$(srctree)/apps/unittest/Kconfig.test \
 	$(srctree)/apps/Kconfig.app
 
 export KCONFIG_AUTO_FILES
@@ -167,6 +191,7 @@ env_setup:
 	$(Q)if [ ! -f $(srctree)/device/Kconfig.devices ]; then echo "GEN    Device Kconfig"; $(srctree)/tools/scripts/gen_device_kconfig.sh $(srctree)/device $(DEVICES); fi
 	$(Q)if [ ! -f $(srctree)/core_img/Kconfig.imgs ]; then echo "GEN    Images Kconfig"; $(srctree)/tools/scripts/gen_img_kconfig.sh $(srctree)/core_img $(CORE_IMAGES); fi
 	$(Q)if [ ! -f $(srctree)/apps/Kconfig.app ]; then echo "GEN    App Kconfig"; $(srctree)/tools/scripts/gen_app_kconfig.sh $(srctree)/apps $(APPS); fi
+	$(Q)if [ ! -f $(srctree)/apps/unittest/Kconfig.test ]; then echo "GEN    App Test Kconfig"; $(srctree)/tools/scripts/gen_test_kconfig.sh $(srctree)/apps/unittest $(COMPONENT_DIRS); fi
 	$(Q)if [ ! -f $(srctree)/tools/toolchain/Kconfig.toolchain ]; then echo "GEN    Tool-chain Kconfig"; $(srctree)/tools/scripts/gen_toolchain_kconfig.sh $(srctree)/tools/toolchain $(TOOLCHAINS); fi
 # ---------------------------------------------------------------------------
 # astyle format syntax
@@ -195,31 +220,6 @@ list-config:
 	@ls $(srctree)/configs/*_defconfig | sed 's:$(srctree)/configs/::g' | sort
 
 #===========================================================================
-
-
-# disable built-in make rules, makes debugging saner
-MAKEFLAGS_OLD := $(MAKEFLAGS)
-MAKEFLAGS +=-rR
-
-# Default path to the project: we assume the Makefile including this file
-# is in the project directory
-ifndef PROJECT_PATH
-PROJECT_PATH := $(abspath $(dir $(firstword $(MAKEFILE_LIST))))
-export PROJECT_PATH
-endif
-
-# A list of the "common" makefiles, to use as a target dependency
-COMMON_MAKEFILES := $(abspath $(srctree)/tools/scripts/project.mk $(srctree)/tools/scripts/common.mk $(srctree)/tools/scripts/component_wrapper.mk)
-export COMMON_MAKEFILES
-
-# Component directories. These directories are searched for components.
-# The project Makefile can override these component dirs, or define extra component directories.
-COMPONENT_DIRS ?= $(PROJECT_PATH)/libs \
-				$(EXTRA_MODULE_DIRS) \
-				$(srctree)/middleware/third_party \
-				$(srctree)/middleware/prebuild
-
-export COMPONENT_DIRS
 
 # Source directories of the project itself (a special, project-specific component.) Defaults to only "main".
 SRCDIRS ?= $(PROJECT_PATH)

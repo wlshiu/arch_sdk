@@ -114,6 +114,7 @@ bin/*
 **/Kconfig.toolchain
 **/Kconfig.devices
 **/Kconfig.imgs
+**/Kconfig.test
 tools/toolchain/active/*
 sdkconfig
 autoconfig

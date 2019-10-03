@@ -3,19 +3,4 @@
 # see doc/kconfig-language.txt.
 #
 
-menu "unittest"
-
-    config ENABLE_UNITTEST
-        bool "enable unittest module"
-        default n
-        ---help---
-            enable unittest or not
-
-
-    if ENABLE_UNITTEST
-
-
-    endif
-
-endmenu
-
+source apps/unittest/Kconfig.test
