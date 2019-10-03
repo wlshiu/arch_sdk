@@ -4,7 +4,7 @@
 
 
 ###
-# Add linker arguments to the LDFLAGS for the app executable. Defaults to -l$(COMPONENT_NAME). 
+# Add linker arguments to the LDFLAGS for the app executable. Defaults to -l$(COMPONENT_NAME).
 # If adding pre-compiled libraries to this directory, add them as absolute paths - ie $(COMPONENT_PATH)/libwhatever.a
 COMPONENT_ADD_LDFLAGS +=
 
@@ -15,7 +15,7 @@ COMPONENT_ADD_LDFLAGS +=
 COMPONENT_ADD_INCLUDEDIRS +=
 
 ###
-# Directory paths, must be relative to the component directory, 
+# Directory paths, must be relative to the component directory,
 # which will be added to the include search path for this component's source files only.
 COMPONENT_PRIV_INCLUDEDIRS += unity
 
@@ -23,10 +23,8 @@ COMPONENT_PRIV_INCLUDEDIRS += unity
 # Object files to compile. Default value is a .o file for each source file that is found in COMPONENT_SRCDIRS.
 # Overriding this list allows you to exclude source files in COMPONENT_SRCDIRS that would otherwise be compiled.
 COMPONENT_OBJS := \
-	main.o \
-	./unity/unity.o
-
-	
+	./unity/unity.o \
+	main.o
 ###
 # Directory paths, must be relative to the component directory, which will be searched for source files (*.cpp, *.c, *.S).
 # Defaults to '.', ie the component directory itself.

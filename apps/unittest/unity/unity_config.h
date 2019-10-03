@@ -221,7 +221,8 @@ extern "C" {
  * `stdout` option. You decide to route your test result output to a custom
  * serial `RS232_putc()` function you wrote like thus:
  */
-/* #define UNITY_OUTPUT_CHAR(a)                    RS232_putc(a) */
+extern void unity_putc(int c);
+#define UNITY_OUTPUT_CHAR(a)                    unity_putc(a)
 /* #define UNITY_OUTPUT_CHAR_HEADER_DECLARATION    RS232_putc(int) */
 /* #define UNITY_OUTPUT_FLUSH()                    RS232_flush() */
 /* #define UNITY_OUTPUT_FLUSH_HEADER_DECLARATION   RS232_flush(void) */
@@ -267,6 +268,7 @@ extern "C" {
 //=============================================================================
 //                  Self Definition
 //=============================================================================
+#define UNITY_OUTPUT_COLOR
 
 typedef struct test_item
 {

@@ -65,6 +65,12 @@ _unity_run_single_test(const test_item_t *pItem)
 //=============================================================================
 //                  Public Function Definition
 //=============================================================================
+void unity_putc(int c)
+{
+    putchar((c & 0xFF));
+    return;
+}
+
 void setUp(void)
 {
   /* This is run before EACH TEST */
@@ -104,7 +110,12 @@ void unity_run(void)
 
     while(1)
     {
-        char    ch = unity_getchar();
+        int     value = unity_getchar();
+        char    ch = 0;
+
+        if( value < 0 )     continue;
+
+        ch = (value & 0xFF);
 
         if( ch != '\n' && ch != '\r' )
         {
@@ -160,15 +171,12 @@ void unity_run(void)
                 while( pCur_item )
                 {
                     _unity_run_single_test((const test_item_t*)pCur_item);
-
                     pCur_item = pCur_item->next;
                 }
             }
             else if( (item_index = strtol(pCmd_args[0], &pCur, 10)) )
             {
                 // single test with index
-
-
                 while( pCur_item )
                 {
                     if( item_index == 1 )
@@ -182,6 +190,7 @@ void unity_run(void)
             UNITY_END();
 
             memset(line, 0x0, sizeof(line));
+            pos = 0;
         }
     }
     return;
@@ -194,11 +203,17 @@ int main(void)
     return rval;
 }
 
-
 TEST("test a + b", "[ADD function]")
 {
     int     a = 5, b = 3;
 
-    TEST_ASSERT((a + b)==8);
+    TEST_ASSERT_EQUAL(7, (a + b));
+}
+
+TEST("test a - b", "[Subtract function]")
+{
+    int     a = 5, b = 3;
+
+    TEST_ASSERT_EQUAL(2, (a - b));
 }
 
