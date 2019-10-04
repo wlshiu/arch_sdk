@@ -21,6 +21,11 @@ ifdef BATCH_BUILD
 V ?= 1
 endif
 
+ECHO_OPTIONS:=
+ifneq ($(OS_PLATFORM),linux)
+ECHO_OPTIONS:=-e
+endif
+
 #Handling of V=1/VERBOSE=1 flag
 #
 # if V=1, $(summary) does nothing and $(details) will echo extra details
@@ -28,9 +33,9 @@ endif
 V ?= $(VERBOSE)
 ifeq ("$(V)","1")
 summary := @true
-details := @echo -e
+details := @echo $(ECHO_OPTIONS)
 else
-summary := @echo -e
+summary := @echo $(ECHO_OPTIONS)
 details := @true
 
 # disable echoing of commands, directory names

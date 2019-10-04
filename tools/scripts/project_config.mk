@@ -94,12 +94,12 @@ endif
 
 
 %_defconfig: env_setup $(KCONFIG_TOOL_DIR)/conf toolchain
-	@echo -e $(RED)"new target(%_defconfig): $(@)" $(NC)
+	$(summary) $(RED)"new target(%_defconfig): $(@)" $(NC)
 	$(call RunConf,conf --defconfig=$(srctree)/configs/$@)
 
 
 savedefconfig: env_setup $(KCONFIG_TOOL_DIR)/conf $(SDKCONFIG) $(COMPONENT_KCONFIGS)
-	@echo -e $(RED)"new target(savedefconfig): $(@)" $(NC)
+	$(summary) $(RED)"new target(savedefconfig): $(@)" $(NC)
 	$(call RunConf,conf --$@=defconfig)
 
 

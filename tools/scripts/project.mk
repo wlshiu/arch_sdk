@@ -5,7 +5,7 @@
 # together into the final file. If so, PWD is the project dir (we assume).
 #
 
-PHONY := build-components all build clean distclean info env_setup all_binaries
+PHONY := build-components all build clean distclean info env_setup all_binaries help
 PHONY += menuconfig defconfig savedefconfig %_defconfig
 PHONY += docs size tags TAGS cscope gtags toolchain toolchain-clean release gdb gdb_server
 
@@ -23,7 +23,8 @@ help:
 	@echo ""
 	@echo "  make menuconfig            - Configure project"
 	@echo "  make defconfig             - Set defaults for all new configuration options"
-	@echo "  make xxx_defconfig         - Use default configuration options which is in $(srctree)/configs directory"
+	@echo "  make xxx_defconfig         - Use default configuration options which is in"
+	@echo "                                $(srctree)/configs directory."
 	@echo ""
 	@echo "  make toolchain             - Prepare toolchain if you do not use host environment setting."
 	@echo "                               ps. It should be executed before make compile"
@@ -58,6 +59,8 @@ help:
 	@echo "Development functions"
 	@echo "  make size                  - List section size infomation and output *.nm file"
 	@echo "  make objdump               - Disassemble objects and output *.objdump file"
+	@echo "  make gdb_server            - Start GDB server"
+	@echo "  make gdb                   - Run GDB for development on Linux."
 	@echo ""
 	@echo "  make V=0|1 [targets] 0 => quiet build (default), 1 => verbose build"
 	@echo "  make O=dir [targets] Locate all output files in 'dir', including autoconfig"
@@ -101,7 +104,9 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 cmd = @$(echo-cmd) $(cmd_$(1))
 
-export CONFIG_SHELL cmd
+OS_PLATFORM := $(shell uname -s | tr A-Z a-z)
+
+export CONFIG_SHELL cmd OS_PLATFORM
 
 # The directory where we put all objects/libraries/binaries. The project Makefile can
 # configure this if needed.
@@ -167,9 +172,8 @@ export PROJECT_NAME PROJECT_PATH
 # Git version
 # ---------------------------------------------------------------------------
 GIT := $(shell command -v git 2> /dev/null)
-
-ifdef GIT
-GIT_COMMINT_VER := $(shell $(GIT) describe --long --all --always --abbrev=8 | sed 's/.*-g\(.*\)/\1/')
+ifndef GIT
+$(error Can't get "git" command. Please install git.)
 endif
 
 KCONFIG_AUTO_FILES := \
@@ -184,7 +188,6 @@ export KCONFIG_AUTO_FILES
 
 info:
 	@if [ ! -z $(GIT) ]; then $(GIT) config --global core.autocrlf input; fi
-	@echo -e $(YELLOW) "The Git commit SHA-1 ID \"$(GIT_COMMINT_VER)\"" $(NC)
 
 env_setup:
 	$(Q)if [ ! -f $(srctree)/device/Kconfig.linkscript ]; then echo "GEN    Link-Script Kconfig"; $(srctree)/tools/scripts/gen_ld_kconfig.sh $(srctree)/device $(LINK_SCRIPTS); fi
@@ -201,15 +204,15 @@ ASTYLE := $(ASTYLE_TOOL_DIR)/bin/astyle
 export ASTYLE_TOOL_DIR ASTYLE
 
 astyle:
-	@echo -e $(YELLOW) "Format Syntax..." $(NC)
+	$(summary) $(YELLOW) "Format Syntax..." $(NC)
 	$(Q)if [ ! -f $(ASTYLE) ]; then echo "Build astyle"; CXX=$(HOSTCXX) CC=$(HOSTCC) LD=$(HOSTLD) CFLAGS= $(MAKE) -C $(ASTYLE_TOOL_DIR); fi
 	@cd $(srctree)
-	@echo -e $(RED)"Not yet" $(NC)
+	$(summary) $(RED)"Not yet" $(NC)
 
 DOXYOBJ_FILES :=
 DOXYGEN := @doxygen
 docs: doxyfile.inc
-	@echo -e $(YELLOW) "Running doxygen to create documentations" $(NC)
+	$(summary) $(YELLOW) "Running doxygen to create documentations" $(NC)
 	@mkdir -p $(srctree)/doc/html
 	$(DOXYGEN) $(srctree)/tools/scripts/doxyfile.mk > doxy.log 2>&1
 
@@ -338,11 +341,11 @@ endif
 export TOOLCHAIN_PATH
 
 all:
-	@echo -e $(YELLOW) "Done..."$(NC)
+	$(summary) $(YELLOW) "Done..."$(NC)
 
 toolchain:
 	$(Q)if [ ! -z $(CONFIG_TARGET_TOOLCHAIN_PATH) ] && [ ! -d $(srctree)/tools/toolchain/active ]; then \
-		echo -e "Un-tar toolchain ... $(CONFIG_TARGET_TOOLCHAIN_PATH)" ; \
+		$(summary) "Un-tar toolchain ... $(CONFIG_TARGET_TOOLCHAIN_PATH)" ; \
 		mkdir $(srctree)/tools/toolchain/active ; \
 		$(srctree)/tools/scripts/untar_toolchain.sh $(CONFIG_TARGET_TOOLCHAIN_PATH) $(srctree)/tools/toolchain/active ; \
 	fi;
@@ -559,7 +562,7 @@ $(BUILD_DIR_BASE):
 #
 # Is recursively expanded by the GenerateComponentTargets macro
 define ComponentMake
-+$(MAKE) -C $(BUILD_DIR_BASE)/$(2) -f $(srctree)/tools/scripts/component_wrapper.mk COMPONENT_MAKEFILE=$(1)/component.mk COMPONENT_NAME=$(2)
++$(MAKE) -C $(BUILD_DIR_BASE)/$(2) -f $(srctree)/tools/scripts/component_wrapper.mk COMPONENT_MAKEFILE=$(1)/component.mk COMPONENT_NAME=$(2) GIT_SHA1=$(shell cd $(1) && $(GIT) describe --long --all --always --abbrev=8 | sed 's/.*-g\(.*\)/\1/')
 endef
 
 # Generate top-level component-specific targets for each component
@@ -570,7 +573,7 @@ define GenerateComponentTargets
 PHONY += $(2)-build $(2)-clean $(2)-doxyobj
 
 $(2)-build:
-	$(summary) $(YELLOW) build $(2) $(NC)
+	$(summary) $(YELLOW) build $(2) sha1:$(shell cd $(1) && $(GIT) describe --long --all --always --abbrev=8 | sed 's/.*-g\(.*\)/\1/') $(NC)
 	$(call ComponentMake,$(1),$(2)) build
 
 $(2)-clean:
@@ -633,16 +636,16 @@ list:
 # ---------------------------------------------------------------------------
 size: toolchain $(APP_BIN)
 	@echo ""
-	@echo -e $(YELLOW) "Size information"$(NC)
-	@echo -e $(YELLOW) " Log to $(APP_SYMBOL)"$(NC)
-	$(SIZE) -At -x $(APP_ELF)
-	$(SIZE) -At -x $(APP_ELF) > $(APP_SYMBOL)
-	@echo -e "\nSYMBOLS:\n" >> $(APP_SYMBOL)
+	$(summary) $(YELLOW) "Size information"$(NC)
+	$(summary) $(YELLOW) " Log to $(APP_SYMBOL)"$(NC)
+	$(SIZE) -At -d $(APP_ELF)
+	$(SIZE) -At -d $(APP_ELF) > $(APP_SYMBOL)
+	$(summary) "\nSYMBOLS:\n" >> $(APP_SYMBOL)
 	$(NM) -C -nslS -f bsd -t x $(APP_ELF) >> $(APP_SYMBOL)
 
 objdump: toolchain $(APP_BIN)
 	@echo ""
-	@echo -e $(YELLOW) "Objects Dump to $(APP_OBJDUMP)"$(NC)
+	$(summary) $(YELLOW) "Objects Dump to $(APP_OBJDUMP)"$(NC)
 	$(OBJDUMP) -Sx $(APP_ELF) > $(APP_OBJDUMP)
 
 # ---------------------------------------------------------------------------

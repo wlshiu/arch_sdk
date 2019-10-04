@@ -124,3 +124,4 @@ autoconfig
 out/*
 doc/html/*
 **/doxygen_sqlite3.db
+**/.version.c
