@@ -7,7 +7,7 @@
 
 PHONY := build-components all build clean distclean info env_setup all_binaries help
 PHONY += menuconfig defconfig savedefconfig %_defconfig
-PHONY += docs size tags TAGS cscope gtags toolchain toolchain-clean release gdb gdb_server
+PHONY += docs size tags TAGS cscope gtags toolchain toolchain-clean release gdb gdb_server embitz
 
 all: info env_setup all_binaries
 # see below for recipe of 'all' target
@@ -634,6 +634,11 @@ list:
 # ---------------------------------------------------------------------------
 # development functions
 # ---------------------------------------------------------------------------
+# embitz: $(APP_BIN)
+embitz:
+	$(summary) $(BWHITE) ">> Create EmBitz Project"$(NC)
+	$(Q)$(srctree)/tools/scripts/create_embitz.sh $(BUILD_DIR_BASE) $(PROJECT_NAME) $(srctree)/misc/embitz_project_template.ebp
+
 size: toolchain $(APP_BIN)
 	@echo ""
 	$(summary) $(YELLOW) "Size information"$(NC)

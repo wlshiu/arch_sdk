@@ -82,6 +82,9 @@ OWN_INCLUDES:=$(abspath $(addprefix $(COMPONENT_PATH)/,$(COMPONENT_ADD_INCLUDEDI
 COMPONENT_INCLUDES := $(OWN_INCLUDES) $(filter-out $(OWN_INCLUDES),$(COMPONENT_INCLUDES))
 
 COMPONENT_OBJS += .version.o
+
+COMPONENT_RELATIVE_PATH := $(subst $(srctree)/,./,$(COMPONENT_PATH))
+
 ################################################################################
 # 4) Define a target to generate component_project_vars.mk Makefile which
 # contains common per-component settings which are included directly in the
@@ -166,6 +169,8 @@ define GenerateCompileTargets
 # $(1) - directory containing source files, relative to $(COMPONENT_PATH)
 $(1)/%.o: $$(COMPONENT_PATH)/$(1)/%.c $(COMMON_MAKEFILES) $(COMPONENT_MAKEFILE) | $(1)
 	$$(summary) CC $$@
+	$$(Q)echo $$(COMPONENT_RELATIVE_PATH)/$$@ >> $$(COMPONENT_NAME).slst
+	$$(Q)echo $$(addprefix -I ,$$(COMPONENT_INCLUDES)) >> $$(COMPONENT_NAME).incp
 	$$(CC) $$(addprefix -I ,$$(COMPONENT_INCLUDES)) $$(addprefix -I ,$$(COMPONENT_EXTRA_INCLUDES)) -I$(1) $$(CFLAGS) $$(CPPFLAGS) -c $$< -o $$@
 
 $(1)/%.o: $$(COMPONENT_PATH)/$(1)/%.cpp $(COMMON_MAKEFILES) $(COMPONENT_MAKEFILE) | $(1)
@@ -180,6 +185,9 @@ $(1)/%.o: $$(COMPONENT_PATH)/$(1)/%.S $(COMMON_MAKEFILES) $(COMPONENT_MAKEFILE) 
 $(1):
 	@mkdir -p $(1)
 endef
+
+$(shell rm -f $(COMPONENT_NAME).slst)
+$(shell rm -f $(COMPONENT_NAME).incp)
 
 # Generate all the compile target patterns
 $(foreach srcdir,$(COMPONENT_SRCDIRS), $(eval $(call GenerateCompileTargets,$(srcdir))))
