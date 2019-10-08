@@ -13,8 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "unity/unity_config.h"
-#include "unity/unity.h"
+#include "unity_config.h"
+#include "unity.h"
 
 //=============================================================================
 //                  Constant Definition
