@@ -166,7 +166,7 @@ SECTIONS
 	{
 		__end__ = .;
 		PROVIDE(end = .);
-		*(.heap*)
+		KEEP(*(.heap*))
 		__HeapLimit = .;
 	} > RAM
 
@@ -175,7 +175,7 @@ SECTIONS
 	 * values to stack symbols later */
 	.stack_dummy (COPY):
 	{
-		*(.stack*)
+		KEEP(*(.stack*))
 	} > RAM
 
 	/* Set stack top to end of RAM, and stack limit move down by
