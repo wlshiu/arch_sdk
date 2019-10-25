@@ -7,7 +7,7 @@
 
 PHONY := build-components all build clean distclean info env_setup all_binaries help
 PHONY += menuconfig defconfig savedefconfig %_defconfig
-PHONY += docs size tags TAGS cscope gtags toolchain toolchain-clean release gdb gdb_server embitz
+PHONY += docs size objdump tags TAGS cscope gtags toolchain toolchain-clean release gdb gdb_server embitz
 
 all: info env_setup all_binaries
 # see below for recipe of 'all' target
@@ -43,10 +43,6 @@ help:
 	@echo ""
 	@echo "  make list                  - List component libraries"
 	@echo "  make list-config           - List config files in $(srctree)/configs"
-	@echo ""
-	@echo "Select unittest of apps"
-	@echo "  make TEST_COMPONENTS=components-name - Build the unittest with the names of the components having \'test\' subdirectory"
-	@echo "  make TESTS_ALL=1           - Build the unittest with all the tests for components having \'test\' subdirectory."
 	@echo ""
 	@echo "  make tags/TAGS             - Generate tags file for editors"
 	@echo "  make cscope                - Generate cscope index"
@@ -197,7 +193,7 @@ env_setup:
 	$(Q)if [ ! -f $(srctree)/apps/unittest/Kconfig.test ]; then echo "GEN    App Test Kconfig"; $(srctree)/tools/scripts/gen_test_kconfig.sh $(srctree)/apps/unittest $(COMPONENT_DIRS); fi
 	$(Q)if [ ! -f $(srctree)/tools/toolchain/Kconfig.toolchain ]; then echo "GEN    Tool-chain Kconfig"; $(srctree)/tools/scripts/gen_toolchain_kconfig.sh $(srctree)/tools/toolchain $(TOOLCHAINS); fi
 # ---------------------------------------------------------------------------
-# astyle format syntax
+# style format syntax
 # ---------------------------------------------------------------------------
 ASTYLE_TOOL_DIR := $(srctree)/tools/astyle/build/gcc
 ASTYLE := $(ASTYLE_TOOL_DIR)/bin/astyle
@@ -208,6 +204,16 @@ astyle:
 	$(Q)if [ ! -f $(ASTYLE) ]; then echo "Build astyle"; CXX=$(HOSTCXX) CC=$(HOSTCC) LD=$(HOSTLD) CFLAGS= $(MAKE) -C $(ASTYLE_TOOL_DIR); fi
 	@cd $(srctree)
 	$(summary) $(RED)"Not yet" $(NC)
+
+$(BUILD_DIR_BASE)/uncrustify/uncrustify:
+	$(Q)CFLAGS= CXXFLAGS=; \
+	   	echo "Build    uncrustify"; \
+		if [ -d $(BUILD_DIR_BASE)/uncrustify ]; then \
+			rm -fr $(BUILD_DIR_BASE)/uncrustify; \
+		fi; \
+	   	mkdir -p $(BUILD_DIR_BASE)/uncrustify; \
+		$(srctree)/tools/scripts/build_uncrustify.sh $(BUILD_DIR_BASE)/uncrustify $(srctree)/tools/uncrustify;
+
 
 DOXYOBJ_FILES :=
 DOXYGEN := @doxygen
@@ -259,6 +265,9 @@ define filterConfigComponents
 ifeq ($$(CONFIG_ENABLE_$(1)),y)
 $(3) += $(2)
 endif
+ifeq ($$(CONFIG_APP_$(1)),y)
+$(3) += $(2)
+endif
 endef
 
 $(foreach comp,$(COMPONENTS),$(eval $(call filterConfigComponents,$(shell echo $(subst .,_,$(comp)) | tr a-z A-Z),$(comp),CONFIG_ENABLE_COMPONENTS)))
@@ -289,18 +298,23 @@ CONFIG_ENABLE_COMPONENT_PATHS += $(foreach comp,$(CONFIG_ENABLE_COMPONENTS),$(fi
 COMPONENT_PATHS_BUILDABLE := $(foreach cp,$(CONFIG_ENABLE_COMPONENT_PATHS),$(if $(wildcard $(cp)/component.mk),$(cp)))
 COMPONENT_PATHS_BUILDABLE += $(SRCDIRS)
 
-# If TESTS_ALL set to 1, set TEST_COMPONENTS to all components
-ifeq ($(TESTS_ALL),1)
-TEST_COMPONENTS := $(COMPONENTS)
+#===========================================================================
+# ---------------------------------------------------------------------------
+# filter test case with CONFIG_ENABLE_TEST_xxx
+# ---------------------------------------------------------------------------
+define filterTestCases
+ifeq ($$(CONFIG_ENABLE_TEST_$(1)),y)
+$(3) += $(2)
 endif
+endef
 
-# If TEST_COMPONENTS is set, create variables for building unit tests
-ifdef TEST_COMPONENTS
-# TODO: unit-test
-override TEST_COMPONENTS := $(foreach comp,$(TEST_COMPONENTS),$(wildcard $(COMPONENT_DIRS)/$(comp)/test))
+ifeq ($(CONFIG_APP_UNITTEST),y)
+$(foreach comp,$(CONFIG_ENABLE_COMPONENTS),$(eval $(call filterTestCases,$(shell echo $(subst .,_,$(comp)) | tr a-z A-Z),$(comp),TEST_COMPONENTS)))
+override TEST_COMPONENTS := $(foreach comp,$(TEST_COMPONENTS),$(foreach compdir,$(COMPONENT_DIRS),$(wildcard $(compdir)/$(comp)/test)))
 TEST_COMPONENT_PATHS := $(TEST_COMPONENTS)
-TEST_COMPONENT_NAMES :=  $(foreach comp,$(TEST_COMPONENTS),$(lastword $(subst /, ,$(dir $(comp))))_test)
+TEST_COMPONENT_NAMES := $(foreach comp,$(TEST_COMPONENTS),$(lastword $(subst /, ,$(dir $(comp))))_test)
 endif
+#===========================================================================
 
 # Initialise project-wide variables which can be added to by
 # each component.
@@ -340,6 +354,7 @@ endif
 endif
 export TOOLCHAIN_PATH
 
+# all: $(BUILD_DIR_BASE)/uncrustify/uncrustify
 all:
 	$(summary) $(YELLOW) "Done..."$(NC)
 
@@ -351,7 +366,7 @@ toolchain:
 	fi;
 
 toolchain-clean:
-	@echo -e "remove active toolchain"
+	$(summary) "remove active toolchain"
 	@rm -fr $(srctree)/tools/toolchain/active
 
 # Set CPU options
@@ -373,8 +388,9 @@ LDFLAGS ?= \
 LDFLAGS += -lc -lm -lnosys $(CPU_FLAGS)
 LDFLAGS += -T$(CONFIG_TARGET_LD_FILE)
 LDFLAGS += -L$(srctree)/middleware/prebuild
+LDFLAGS +=$(foreach plib,$(notdir $(wildcard $(srctree)/middleware/prebuild/*.a)),$(addprefix -l,$(subst lib,,$(basename $(plib)))))
 
-
+# LDFLAGS += -nostartfiles
 # LDFLAGS += -nostdlib -lstdc++ -lgcc
 # LDFLAGS += -u call_user_start_cpu0
 
@@ -470,6 +486,7 @@ OBJCOPY := $(call dequote,$(CONFIG_TOOLPREFIX))objcopy
 OBJDUMP := $(call dequote,$(CONFIG_TOOLPREFIX))objdump
 SIZE := $(call dequote,$(CONFIG_TOOLPREFIX))size
 NM := $(call dequote,$(CONFIG_TOOLPREFIX))nm
+STRIP := $(call dequote,$(CONFIG_TOOLPREFIX))strip
 GDB := $(call dequote,$(CONFIG_TOOLPREFIX))gdb
 
 CC := $(TOOLCHAIN_PATH)$(CC)
@@ -480,8 +497,9 @@ OBJCOPY := $(TOOLCHAIN_PATH)$(OBJCOPY)
 OBJDUMP := $(TOOLCHAIN_PATH)$(OBJDUMP)
 SIZE := $(TOOLCHAIN_PATH)$(SIZE)
 NM := $(TOOLCHAIN_PATH)$(NM)
+STRIP := $(TOOLCHAIN_PATH)$(STRIP)
 GDB := $(TOOLCHAIN_PATH)$(GDB)
-export CC CXX LD AR OBJCOPY SIZE OBJDUMP NM GDB
+export CC CXX LD AR OBJCOPY SIZE OBJDUMP NM GDB STRIP
 
 # TODO: python
 # PYTHON=$(call dequote,$(CONFIG_PYTHON))
@@ -640,7 +658,7 @@ embitz:
 	$(Q)$(srctree)/tools/scripts/create_embitz.sh $(BUILD_DIR_BASE) $(PROJECT_NAME) $(srctree)/misc/embitz_project_template.ebp
 
 size: toolchain $(APP_BIN)
-	@echo ""
+	$(summary)""
 	$(summary) $(YELLOW) "Size information"$(NC)
 	$(summary) $(YELLOW) " Log to $(APP_SYMBOL)"$(NC)
 	$(SIZE) -At -d $(APP_ELF)
@@ -649,7 +667,7 @@ size: toolchain $(APP_BIN)
 	$(NM) -C -nslS -f bsd -t x $(APP_ELF) >> $(APP_SYMBOL)
 
 objdump: toolchain $(APP_BIN)
-	@echo ""
+	$(summary)""
 	$(summary) $(YELLOW) "Objects Dump to $(APP_OBJDUMP)"$(NC)
 	$(OBJDUMP) -Sx $(APP_ELF) > $(APP_OBJDUMP)
 
@@ -668,8 +686,9 @@ gdb: $(APP_ELF)
 # ---------------------------------------------------------------------------
 # pack SDK for release
 # ---------------------------------------------------------------------------
-release:
-	@echo -e $(RED)"new target 'release' (not yet): $(@)" $(NC)
+release: $(APP_ELF)
+	$(summary) $(GREEN) "Prepare release SDK"$(NC)
+	$(Q)$(srctree)/tools/scripts/release_sdk.sh $(srctree) $(BUILD_DIR_BASE)
 
 
 #===========================================================================

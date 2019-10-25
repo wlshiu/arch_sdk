@@ -27,7 +27,7 @@ ignore="$ignore ( -name *.mod.c ) -prune -o"
 # Use make O=. {tags|cscope}
 # to force full paths for a non-O= build
 if [ "${KBUILD_SRC}" = "" ]; then
-	tree=
+	tree=./
 else
 	tree=${srctree}/
 fi
@@ -75,7 +75,7 @@ find_arch_include_sources()
 # find sources in include/
 find_include_sources()
 {
-	find ${tree}include $ignore -name config -prune -o -name "$1" \
+	find ${tree} $ignore -name config -prune -o -name "$1" \
 		-not -type l -print;
 }
 
@@ -154,7 +154,7 @@ docscope()
 
 dogtags()
 {
-    (echo \-k; echo \-q; all_target_sources) > cscope.files
+    (all_target_sources) > cscope.files
 	all_target_sources | gtags -i -f -
 }
 

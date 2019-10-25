@@ -53,6 +53,47 @@ endmenu
 
 source "$COMPONENT_KCONFIGS_PROJBUILD"
 
+menu "Post build"
+    config ENABLE_COPY_TARGET
+        bool "Enable copy target after building"
+        default n
+        ---help---
+            copy the output after building
+
+    if ENABLE_COPY_TARGET
+
+        choice
+            prompt "Copy output file"
+            default COPY_OUTPUT_FILE_TYPE_BIN
+
+            config COPY_OUTPUT_FILE_TYPE_BIN
+                bool "Copy BIN file"
+                ---help---
+                    Copy output bin file
+
+            config COPY_OUTPUT_FILE_TYPE_ELF
+                bool "Copy ELF file"
+                ---help---
+                  Copy output elf file.
+
+        endchoice
+
+        config COPY_DESTINATION
+            string "The destination of copy"
+            default "core_img"
+            ---help---
+                set the path of destination
+
+        config COPY_TARGET_OUTPUT_FILE_TYPE
+            string
+            default ""
+            default "bin" if COPY_OUTPUT_FILE_TYPE_BIN
+            default "elf" if COPY_OUTPUT_FILE_TYPE_ELF
+
+    endif
+
+endmenu
+
 menu "APP config"
     #source "$APP_KCONFIGS"
     source apps/Kconfig.app
