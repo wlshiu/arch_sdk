@@ -86,6 +86,8 @@ done
 rm -f ${tmp_list_1}
 rm -f ${pack_list}
 
+find ${out_dir}/release/${out_name}/ -empty -type d -delete
+
 echo -e "${Yellow} Pack SDK to ${out_dir}/release ${NC}"
 cd ${out_dir}/release
 
