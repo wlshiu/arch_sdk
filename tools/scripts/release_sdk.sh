@@ -14,10 +14,11 @@ NC='\e[0m' # No Color
 
 root_dir=$1
 out_dir=$2
+out_name=$3
 cur_dir=`pwd`
 
 datetime=$(date '+%Y%m%d-%H_%M_%S')
-out_name=sdk_${datetime}
+out_name=${out_name}_${datetime}
 
 ignore_list=(
 'Kconfig.linkscript'

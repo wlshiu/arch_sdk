@@ -35,7 +35,8 @@ help:
 	@echo "                               enough build support to build external modules"
 	@echo "  make distclean             - Remove all generated files + config + various backup files"
 	@echo ""
-	@echo "  make release               - Pack SDK for release"
+	@echo "  make release               - Pack SDK for release."
+	@echo "                               Use 'RELEASE_NAME' to set output name."
 	@echo ""
 	@echo "  make app                   - Build just the app"
 	@echo "  make app-list              - List the executable app"
@@ -686,9 +687,14 @@ gdb: $(APP_ELF)
 # ---------------------------------------------------------------------------
 # pack SDK for release
 # ---------------------------------------------------------------------------
+ifndef RELEASE_NAME
+RELEASE_NAME := sdk
+endif
+export RELEASE_NAME
+
 release: $(APP_ELF)
 	$(summary) $(GREEN) "Prepare release SDK"$(NC)
-	$(Q)$(srctree)/tools/scripts/release_sdk.sh $(srctree) $(BUILD_DIR_BASE)
+	$(Q)$(srctree)/tools/scripts/release_sdk.sh $(srctree) $(BUILD_DIR_BASE) $(RELEASE_NAME)
 
 
 #===========================================================================
