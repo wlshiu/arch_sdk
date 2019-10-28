@@ -1,0 +1,467 @@
+cmake_minimum_required(VERSION 2.8)
+
+project(uncrustify)
+
+if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
+  message(FATAL_ERROR "
+    In-source builds are not supported, please remove the `CMakeFiles'
+    folder and `CMakeCache.txt', and create a folder for the build:
+    mkdir build; cd build; cmake ..
+  ")
+endif()
+
+include(CheckCXXCompilerFlag)
+include(CheckIncludeFileCXX)
+include(CheckSymbolExists)
+include(CheckCXXSymbolExists)
+include(CheckTypeSize)
+include(CTest)
+
+#
+# Check compiler flags
+#
+if(MSVC)
+  add_definitions(/D_CRT_SECURE_NO_WARNINGS /D_CRT_NONSTDC_NO_WARNINGS /wd4267)
+  add_definitions(/utf-8)
+elseif(CMAKE_COMPILER_IS_GNUCXX)
+  add_definitions(-std=gnu++0x)
+  set(gcc_warning_flags
+    -Wall
+    -Wextra
+    -Wshadow
+    -Wpointer-arith
+    -Wcast-qual
+    -Wcast-align
+    -Wc++11-extensions
+  )
+  foreach(flag ${gcc_warning_flags})
+    string(REGEX REPLACE "[^a-zA-Z0-9]+" "_" flag_var "CXXFLAG_${flag}")
+    CHECK_CXX_COMPILER_FLAG("${flag}" ${flag_var})
+    if(${flag_var})
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
+    endif()
+    unset(flag_var)
+  endforeach()
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-field-initializers")
+  endif()
+  unset(gcc_warning_flags)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_definitions(-std=gnu++0x)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+endif()
+
+if(ENABLE_SANITIZER)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1 -fno-omit-frame-pointer -fsanitize=${ENABLE_SANITIZER}")
+endif()
+
+#set(UNCRUSTIFY_SEPARATE_TESTS "True")
+
+include_directories(
+  ${PROJECT_BINARY_DIR}/src
+  ${PROJECT_SOURCE_DIR}/src
+  ${PROJECT_BINARY_DIR}
+)
+
+#
+# Determine config
+#
+if(WIN32)
+  # Windows builds use src/windows_compat.h instead of config.h
+else()
+  # Generate config.h
+  set(avail_headers "")
+
+  set(headers
+    inttypes.h
+    memory.h
+    stdint.h
+    stdlib.h
+    strings.h
+    string.h
+    sys/stat.h
+    sys/types.h
+    unistd.h
+    utime.h
+  )
+  foreach(header ${headers})
+    string(TOUPPER "${header}" header_uc)
+    string(REGEX REPLACE "[^A-Z0-9_]" "_" include_var "HAVE_${header_uc}")
+    check_include_file_cxx("${header}" ${include_var})
+    if(${include_var})
+      list(APPEND avail_headers ${header})
+    endif()
+    unset(include_var)
+    unset(header_uc)
+  endforeach()
+  unset(headers)
+
+  check_include_file("stdbool.h" HAVE_STDBOOL_H)
+
+  set(symbols
+    memset
+    strcasecmp
+    strchr
+    strdup
+    strerror
+    strtol
+    strtoul
+  )
+  foreach(symbol ${symbols})
+    string(TOUPPER "${symbol}" symbol_uc)
+    string(REGEX REPLACE "[^A-Z0-9_]" "_" symbol_var "HAVE_${symbol_uc}")
+    check_cxx_symbol_exists("${symbol}" "${avail_headers}" ${symbol_var})
+    unset(symbol_var)
+    unset(symbol_uc)
+  endforeach()
+  unset(symbols)
+
+  unset(avail_headers)
+
+  check_type_size(_Bool _BOOL LANGUAGE C)
+
+  configure_file(src/config.h.in config.h @ONLY)
+endif()
+
+#
+# Generate uncrustify_version.h
+#
+
+# FIXME: the version number should be automatically integrated
+set(CURRENT_VERSION "Uncrustify-0.69.0_f")
+
+find_package(PythonInterp REQUIRED)
+option(NoGitVersionString "Do not use make_version.py and git to build a version string" OFF)
+if(NOT NoGitVersionString)
+  set(version_debug_flag "")
+  STRING(REGEX MATCH "-g[0-3]?" version_debug_flag ${CMAKE_CXX_FLAGS})
+
+  # checking for build type and passing it to make_version.py
+  # FIXME: does not work with VS .sln projects
+  if(NOT "${version_debug_flag}" STREQUAL "" OR "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" )
+    set(version_debug_flag "Debug")
+  endif()
+
+  execute_process(
+    COMMAND ${PYTHON_EXECUTABLE} scripts/make_version.py ${version_debug_flag}
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    RESULT_VARIABLE make_version_error
+    OUTPUT_VARIABLE make_version_output
+  )
+
+  if (make_version_error)
+    message(STATUS "scripts/make_version.py exited with code ${make_version_error}: ${make_version_output}\n"
+                   "As a fallback, version '${CURRENT_VERSION}' will be used.")
+  else()
+    string(STRIP ${make_version_output} CURRENT_VERSION)
+    message(STATUS "Version: '${CURRENT_VERSION}'")
+  endif()
+endif()
+
+configure_file(src/uncrustify_version.h.in uncrustify_version.h @ONLY)
+
+#
+# Generate token_names.h
+#
+add_custom_command(
+  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/token_names.h"
+  COMMAND ${CMAKE_COMMAND}
+    "-Dsrc_file=${PROJECT_SOURCE_DIR}/src/token_enum.h"
+    "-Ddst_file=${CMAKE_CURRENT_BINARY_DIR}/token_names.h"
+    -P "${PROJECT_SOURCE_DIR}/cmake/GenerateTokenNames.cmake"
+  MAIN_DEPENDENCY src/token_enum.h
+  COMMENT "Generating token_names.h"
+)
+
+# Set up commands for generated source files
+function(py_gen OUTPUT SCRIPT INPUT)
+  set(out "${PROJECT_BINARY_DIR}/src/${OUTPUT}")
+  set(deps "${PROJECT_SOURCE_DIR}/src/${INPUT}")
+  get_filename_component(outdir "${out}" DIRECTORY)
+  foreach(arg IN LISTS ARGN)
+    list(APPEND deps "${PROJECT_SOURCE_DIR}/src/${arg}")
+  endforeach()
+
+  add_custom_command(
+    OUTPUT "${out}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${outdir}"
+    COMMAND ${PYTHON_EXECUTABLE}
+      "${PROJECT_SOURCE_DIR}/scripts/${SCRIPT}"
+      "${out}"
+      ${deps}
+    DEPENDS ${deps} "${PROJECT_SOURCE_DIR}/scripts/${SCRIPT}"
+    MAIN_DEPENDENCY src/${INPUT}
+    COMMENT "Generating ${OUTPUT}"
+  )
+endfunction()
+
+py_gen(punctuator_table.h
+  make_punctuator_table.py
+  symbols_table.h
+)
+
+py_gen(options.cpp
+  make_options.py
+  options.h
+  options.cpp.in
+)
+
+py_gen(option_enum.h
+  make_option_enum.py
+  option.h
+  option_enum.h.in
+)
+
+py_gen(option_enum.cpp
+  make_option_enum.py
+  option.h
+  option_enum.cpp.in
+)
+
+py_gen(../etc/uncrustify.xml
+  make_katehl.py
+  ../etc/uncrustify.xml.in
+  options.h
+  option.h
+  token_enum.h
+)
+
+#
+# Uncrustify
+#
+set(uncrustify_sources
+  src/align.cpp
+  src/align_add.cpp
+  src/align_assign.cpp
+  src/align_asm_colon.cpp
+  src/align_func_params.cpp
+  src/align_func_proto.cpp
+  src/align_init_brace.cpp
+  src/align_left_shift.cpp
+  src/align_log_al.cpp
+  src/align_nl_cont.cpp
+  src/align_oc_decl_colon.cpp
+  src/align_oc_msg_spec.cpp
+  src/align_oc_msg_colons.cpp
+  src/align_preprocessor.cpp
+  src/align_same_func_call_params.cpp
+  src/align_stack.cpp
+  src/align_struct_initializers.cpp
+  src/align_tab_column.cpp
+  src/align_tools.cpp
+  src/align_trailing_comments.cpp
+  src/align_typedefs.cpp
+  src/align_var_def_brace.cpp
+  src/args.cpp
+  src/backup.cpp
+  src/braces.cpp
+  src/brace_cleanup.cpp
+  src/ChunkStack.cpp
+  src/chunk_list.cpp
+  src/combine.cpp
+  src/compat_posix.cpp
+  src/compat_win32.cpp
+  src/detect.cpp
+  src/enum_cleanup.cpp
+  src/flag_parens.cpp
+  src/indent.cpp
+  src/keywords.cpp
+  src/lang_pawn.cpp
+  src/language_tools.cpp
+  src/logger.cpp
+  src/logmask.cpp
+  src/md5.cpp
+  src/newlines.cpp
+  src/option.cpp
+  src/options_for_QT.cpp
+  src/output.cpp
+  src/parens.cpp
+  src/quick_align_again.cpp
+  src/frame_list.cpp
+  src/ParseFrame.cpp
+  src/punctuators.cpp
+  src/semicolons.cpp
+  src/sorting.cpp
+  src/space.cpp
+  src/tokenize.cpp
+  src/tokenize_cleanup.cpp
+  src/uncrustify.cpp
+  src/uncrustify_types.cpp
+  src/unc_text.cpp
+  src/unc_tools.cpp
+  src/unicode.cpp
+  src/universalindentgui.cpp
+  src/width.cpp
+)
+
+set(uncrustify_headers
+  src/align.h
+  src/align_add.h
+  src/align_assign.h
+  src/align_asm_colon.h
+  src/align_func_params.h
+  src/align_func_proto.h
+  src/align_init_brace.h
+  src/align_left_shift.h
+  src/align_log_al.h
+  src/align_nl_cont.h
+  src/align_oc_decl_colon.h
+  src/align_oc_msg_colons.h
+  src/align_oc_msg_spec.h
+  src/align_preprocessor.h
+  src/align_same_func_call_params.h
+  src/align_stack.h
+  src/align_struct_initializers.h
+  src/align_tab_column.h
+  src/align_tools.h
+  src/align_trailing_comments.h
+  src/align_typedefs.h
+  src/align_var_def_brace.h
+  src/args.h
+  src/backup.h
+  src/base_types.h
+  src/char_table.h
+  src/ChunkStack.h
+  src/chunk_list.h
+  src/enum_cleanup.h
+  src/enum_flags.h
+  src/flag_parens.h
+  src/language_tools.h
+  src/ListManager.h
+  src/logger.h
+  src/logmask.h
+  src/log_levels.h
+  src/md5.h
+  src/option.h
+  src/options.h
+  src/options_for_QT.h
+  src/ParseFrame.h
+  src/prototypes.h
+  src/punctuators.h
+  src/quick_align_again.h
+  src/symbols_table.h
+  src/token_enum.h
+  src/uncrustify_types.h
+  src/unc_ctype.h
+  src/unc_text.h
+  src/unc_tools.h
+  ${PROJECT_BINARY_DIR}/src/options.cpp
+  ${PROJECT_BINARY_DIR}/src/option_enum.cpp
+  ${PROJECT_BINARY_DIR}/src/option_enum.h
+)
+
+add_executable(uncrustify ${uncrustify_sources} ${uncrustify_headers})
+
+if(CMAKE_VERSION VERSION_LESS 2.8.10)
+  if(CMAKE_CONFIGURATION_TYPES OR CMAKE_BUILD_TYPE)
+    # Multi-configuration or build type set
+    set_property(TARGET uncrustify APPEND PROPERTY
+      COMPILE_DEFINITIONS_DEBUG DEBUG
+    )
+  else()
+    # Single-configuration with no build type set
+    set_property(TARGET uncrustify APPEND PROPERTY
+      COMPILE_DEFINITIONS DEBUG
+    )
+  endif()
+else()
+  set_property(TARGET uncrustify APPEND PROPERTY
+    COMPILE_DEFINITIONS $<$<OR:$<CONFIG:Debug>,$<CONFIG:>>:DEBUG>
+  )
+endif()
+
+#
+# Generate uncrustify.1
+#
+configure_file(man/uncrustify.1.in uncrustify.1 @ONLY)
+
+#
+# Generate uncrustify.xml (katepart highlighting file)
+#
+add_custom_target(katehl
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/etc/uncrustify.xml
+)
+
+#
+# Tests
+#
+if(BUILD_TESTING)
+  enable_testing()
+  add_subdirectory(tests)
+endif()
+
+#
+# Coverage
+#
+OPTION(ENABLE_CODECOVERAGE "Enable code coverage testing support")
+if(ENABLE_CODECOVERAGE)
+    set(CODECOVERAGE_DEPENDS uncrustify)
+    include(${CMAKE_SOURCE_DIR}/cmake/CodeCoverage.cmake)
+endif(ENABLE_CODECOVERAGE)
+
+#
+# Build command to run uncrustify on its own sources
+#
+add_custom_target(format-sources)
+foreach(source IN LISTS uncrustify_sources uncrustify_headers)
+  get_filename_component(source_name  ${source} NAME)
+  add_custom_target(format-${source_name}
+    COMMAND uncrustify
+      -c forUncrustifySources.cfg
+      -lCPP --no-backup ${source}
+    COMMENT "Formatting ${source}"
+    WORKING_DIRECTORY ${uncrustify_SOURCE_DIR}
+  )
+  add_dependencies(format-sources format-${source_name})
+endforeach()
+
+#
+# Package
+#
+set(CPACK_PACKAGE_NAME "uncrustify")
+set(CPACK_PACKAGE_VERSION "${CURRENT_VERSION}")
+set(CPACK_PACKAGE_VENDOR "Ben Gardner")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Code beautifier")
+set(CPACK_PACKAGE_DESCRIPTION_FILE "${PROJECT_SOURCE_DIR}/README.md")
+set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/COPYING")
+set(CPACK_RESOURCE_FILE_README "${PROJECT_SOURCE_DIR}/README.md")
+set(CPACK_SOURCE_IGNORE_FILES "/\\\\.git/;/\\\\.hg/;/tests/results/;/build.*/")
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY FALSE)
+  set(CPACK_GENERATOR "ZIP")
+endif()
+include(CPack)
+
+#
+# Install
+#
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  install(TARGETS uncrustify DESTINATION ".")
+  install(
+    FILES
+      "${PROJECT_SOURCE_DIR}/README.md"
+      "${PROJECT_SOURCE_DIR}/BUGS"
+      "${PROJECT_SOURCE_DIR}/ChangeLog"
+    DESTINATION "."
+  )
+  install(FILES "${PROJECT_SOURCE_DIR}/documentation/htdocs/index.html"
+    DESTINATION "doc"
+  )
+  install(DIRECTORY "${PROJECT_SOURCE_DIR}/etc/"
+    DESTINATION "cfg"
+    FILES_MATCHING PATTERN "*.cfg"
+  )
+else()
+  include(GNUInstallDirs)
+  install(TARGETS uncrustify
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+  )
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/uncrustify.1"
+    DESTINATION "${CMAKE_INSTALL_MANDIR}/man1"
+  )
+endif()
+
+#
+# add to build the compile_commands.json file, to be used by clang-tidy
+#
+set(CMAKE_EXPORT_COMPILE_COMMANDS "ON" CACHE BOOL "to create the compile_commands.json file" FORCE)

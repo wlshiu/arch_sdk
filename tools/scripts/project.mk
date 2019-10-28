@@ -361,8 +361,7 @@ UNCRUSTIFY_FILE := uncrustify.files
 UNCRUSTIFY := $(BUILD_DIR_BASE)/uncrustify/uncrustify
 export UNCRUSTIFY
 
-# all: $(BUILD_DIR_BASE)/uncrustify/uncrustify
-all:
+all: $(BUILD_DIR_BASE)/uncrustify/uncrustify
 ifeq ("$(CONFIG_ENABLE_SYNTAX_CHECKING)","y")
 	$(Q)if [ ! -z $(CONFIG_ENABLE_SYNTAX_CHECKING) ]; then \
 		echo $(ECHO_OPTIONS) $(YELLOW) "Check syntax format"$(NC); \
@@ -370,7 +369,7 @@ ifeq ("$(CONFIG_ENABLE_SYNTAX_CHECKING)","y")
 			rm -fr $(BUILD_DIR_BASE)/syntax; \
 		fi; \
 		mkdir -p $(BUILD_DIR_BASE)/syntax; \
-		find $(srctree)/middleware/vango -type f -name '*.c' -o -name '*.h' > $(BUILD_DIR_BASE)/syntax/$(UNCRUSTIFY_FILE); \
+		find $(srctree)/apps -type f -name '*.c' -o -name '*.h' > $(BUILD_DIR_BASE)/syntax/$(UNCRUSTIFY_FILE); \
 		$(srctree)/tools/scripts/z_run_uncrustify.sh -r $(srctree)/tools/scripts/syntax_indent.cfg $(BUILD_DIR_BASE)/syntax/$(UNCRUSTIFY_FILE) $(BUILD_DIR_BASE)/syntax; \
 	fi; \
 	if [ $$? != 0 ]; then \
