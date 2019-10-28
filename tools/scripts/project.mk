@@ -566,8 +566,16 @@ $(APP_ELF_ORG): $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(lib
 
 $(APP_BIN): $(APP_ELF_ORG)
 	$(summary) $(YELLOW) "Post Build Steps ................."$(NC)
+ifeq ("$(CONFIG_COPY_OUTPUT_FILE_TYPE_BIN)","y")
+	$(summary) $(BWHITE) " Copy '$(APP_BIN)' to \n\t $(srctree)/$(CONFIG_COPY_DESTINATION)"$(NC)
+	$(Q)cp -f $(APP_BIN) $(srctree)/$(CONFIG_COPY_DESTINATION)
+endif
+ifeq ("$(CONFIG_COPY_OUTPUT_FILE_TYPE_ELF)","y")
+	$(summary) $(BWHITE) " Copy '$(APP_ELF)' to \n\t$(srctree)/$(CONFIG_COPY_DESTINATION)"$(NC)
+	$(Q)cp -f $(APP_ELF) $(srctree)/$(CONFIG_COPY_DESTINATION)
+endif
 	@$(OBJCOPY) $(IMG_FLAGS) $(APP_ELF_ORG) $(APP_ELF)
-	$(summary) $(GREEN) " insert section: $(SECTION_NAMES)"$(NC)
+	$(summary) $(GREEN) " Insert section: $(SECTION_NAMES)"$(NC)
 	@$(OBJCOPY) $(OBJCOPY_FLAGS) $< $@
 
 
