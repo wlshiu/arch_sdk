@@ -99,11 +99,13 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
 	  else echo sh; fi ; fi)
 
+export CONFIG_SHELL
+
 cmd = @$(echo-cmd) $(cmd_$(1))
 
 OS_PLATFORM := $(shell uname -s | tr A-Z a-z)
 
-export CONFIG_SHELL cmd OS_PLATFORM
+export cmd OS_PLATFORM
 
 # The directory where we put all objects/libraries/binaries. The project Makefile can
 # configure this if needed.
@@ -355,8 +357,28 @@ endif
 endif
 export TOOLCHAIN_PATH
 
+UNCRUSTIFY_FILE := uncrustify.files
+UNCRUSTIFY := $(BUILD_DIR_BASE)/uncrustify/uncrustify
+export UNCRUSTIFY
+
 # all: $(BUILD_DIR_BASE)/uncrustify/uncrustify
 all:
+ifeq ("$(CONFIG_ENABLE_SYNTAX_CHECKING)","y")
+	$(Q)if [ ! -z $(CONFIG_ENABLE_SYNTAX_CHECKING) ]; then \
+		echo $(ECHO_OPTIONS) $(YELLOW) "Check syntax format"$(NC); \
+		if [ -d $(BUILD_DIR_BASE)/syntax ]; then \
+			rm -fr $(BUILD_DIR_BASE)/syntax; \
+		fi; \
+		mkdir -p $(BUILD_DIR_BASE)/syntax; \
+		find $(srctree)/middleware/vango -type f -name '*.c' -o -name '*.h' > $(BUILD_DIR_BASE)/syntax/$(UNCRUSTIFY_FILE); \
+		$(srctree)/tools/scripts/z_run_uncrustify.sh -r $(srctree)/tools/scripts/syntax_indent.cfg $(BUILD_DIR_BASE)/syntax/$(UNCRUSTIFY_FILE) $(BUILD_DIR_BASE)/syntax; \
+	fi; \
+	if [ $$? != 0 ]; then \
+		echo $(ECHO_OPTIONS) $(YELLOW) "\n=============================="$(NC); \
+		echo $(ECHO_OPTIONS) $(RED) "The syntax are NOT expected !!!"$(NC); \
+		echo $(ECHO_OPTIONS) $(RED) "You can get the examples at $(BUILD_DIR_BASE)/syntax"$(NC); \
+	fi
+endif
 	$(summary) $(YELLOW) "Done..."$(NC)
 
 toolchain:

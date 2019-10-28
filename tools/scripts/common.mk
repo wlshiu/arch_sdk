@@ -27,6 +27,8 @@ ifneq ($(OS_PLATFORM),linux)
 ECHO_OPTIONS:=-e
 endif
 
+export ECHO_OPTIONS
+
 #Handling of V=1/VERBOSE=1 flag
 #
 # if V=1, $(summary) does nothing and $(details) will echo extra details

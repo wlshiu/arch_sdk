@@ -62,21 +62,17 @@ menu "Post build"
 
     if ENABLE_COPY_TARGET
 
-        choice
-            prompt "Copy output file"
-            default COPY_OUTPUT_FILE_TYPE_BIN
+        config COPY_OUTPUT_FILE_TYPE_BIN
+            bool "Copy output BIN file"
+            default n
+            ---help---
+                Copy output bin file
 
-            config COPY_OUTPUT_FILE_TYPE_BIN
-                bool "Copy BIN file"
-                ---help---
-                    Copy output bin file
-
-            config COPY_OUTPUT_FILE_TYPE_ELF
-                bool "Copy ELF file"
-                ---help---
-                  Copy output elf file.
-
-        endchoice
+        config COPY_OUTPUT_FILE_TYPE_ELF
+            bool "Copy output ELF file"
+            default n
+            ---help---
+              Copy output elf file.
 
         config COPY_DESTINATION
             string "The destination of copy"
@@ -84,13 +80,13 @@ menu "Post build"
             ---help---
                 set the path of destination
 
-        config COPY_TARGET_OUTPUT_FILE_TYPE
-            string
-            default ""
-            default "bin" if COPY_OUTPUT_FILE_TYPE_BIN
-            default "elf" if COPY_OUTPUT_FILE_TYPE_ELF
-
     endif
+
+    config ENABLE_SYNTAX_CHECKING
+        bool "Enable syntax format checking"
+        default y
+        ---help---
+            Check syntax format or not.
 
 endmenu
 
