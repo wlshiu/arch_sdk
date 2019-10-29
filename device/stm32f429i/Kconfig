@@ -1,0 +1,18 @@
+#
+# For a description of the syntax of this configuration file,
+# see doc/kconfig-language.txt.
+#
+
+menu "stm32f429i"
+
+    config STM32F4XX
+        bool "use stm32f4xx board"
+        ---help---
+            use stm32f4xx board
+
+    config USE_STDPERIPH_DRIVER
+        bool "use stm32f4 std peripheral driver"
+        ---help---
+            use stm32f4 std peripheral driver
+
+endmenu
