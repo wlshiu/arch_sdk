@@ -5,11 +5,17 @@ Design a architecture of SDK with kconfig.
 
 # Quickly Start
 
-    ```
-    $ make menuconfig
-        or
-    $ make xxx_defconfig # in configs folder
-    ```
+```shell
+$ make menuconfig
+  or
+$ make xxx_defconfig # in configs folder
+```
+
++ dependency
+
+```shell
+$ sudo apt-get -y install flex gperf libncurses5-dev libreadline6 libreadline6-dev automake libtool build-essential cmake make gcc texinfo pkg-config gettext tig
+```
 
 # Reference
 * [esp-idf](https://github.com/espressif/esp-idf)
