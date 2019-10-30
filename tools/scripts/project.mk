@@ -369,6 +369,9 @@ UNCRUSTIFY_FILE := uncrustify.files
 UNCRUSTIFY := $(BUILD_DIR_BASE)/uncrustify/uncrustify
 export UNCRUSTIFY
 
+SYNTAX_CHECKING_DIR := \
+	$(srctree)/core_img
+
 all: $(BUILD_DIR_BASE)/uncrustify/uncrustify
 ifeq ("$(CONFIG_ENABLE_SYNTAX_CHECKING)","y")
 	$(Q)if [ ! -z $(CONFIG_ENABLE_SYNTAX_CHECKING) ]; then \
@@ -377,7 +380,7 @@ ifeq ("$(CONFIG_ENABLE_SYNTAX_CHECKING)","y")
 			rm -fr $(BUILD_DIR_BASE)/syntax; \
 		fi; \
 		mkdir -p $(BUILD_DIR_BASE)/syntax; \
-		find $(srctree)/core_img -type f -name '*.c' -o -name '*.h' > $(BUILD_DIR_BASE)/syntax/$(UNCRUSTIFY_FILE); \
+		find $(SYNTAX_CHECKING_DIR) -type f -name '*.c' -o -name '*.h' > $(BUILD_DIR_BASE)/syntax/$(UNCRUSTIFY_FILE); \
 		$(srctree)/tools/scripts/z_run_uncrustify.sh -r $(srctree)/tools/scripts/syntax_indent.cfg $(BUILD_DIR_BASE)/syntax/$(UNCRUSTIFY_FILE) $(BUILD_DIR_BASE)/syntax; \
 	fi; \
 	if [ $$? != 0 ]; then \
