@@ -7,7 +7,8 @@
 
 PHONY := build-components all build clean distclean info env_setup all_binaries help
 PHONY += menuconfig defconfig savedefconfig %_defconfig
-PHONY += docs size objdump tags TAGS cscope gtags toolchain toolchain-clean release gdb gdb_server embitz
+PHONY += docs size objdump tags TAGS cscope gtags toolchain toolchain-clean release
+PHONY += gdb gdb_server embitz qemu qemu_gdb
 
 all: info env_setup all_binaries
 # see below for recipe of 'all' target
@@ -59,6 +60,10 @@ help:
 	@echo "  make gdb_server            - Start GDB server"
 	@echo "  make gdb                   - Run GDB for development on Linux."
 	@echo ""
+	@echo "  make qemu                  - Simulate with Qemu"
+	@echo "  make qemu_gdb              - Simulate with Qemu and Start GDB"
+	@echo "                               Use 'QEMU_MEM_SIZE' to set SRAM size (KB), default: 128"
+	@echo ""
 	@echo "  make V=0|1 [targets] 0 => quiet build (default), 1 => verbose build"
 	@echo "  make O=dir [targets] Locate all output files in 'dir', including autoconfig"
 	@echo "----------------------------------------------------------------------"
@@ -90,7 +95,6 @@ export COMMON_MAKEFILES
 COMPONENT_DIRS ?= $(PROJECT_PATH)/libs \
 				$(EXTRA_MODULE_DIRS) \
 				$(srctree)/middleware/third_party \
-				$(srctree)/middleware/prebuild
 
 export COMPONENT_DIRS
 
@@ -195,6 +199,9 @@ env_setup:
 	$(Q)if [ ! -f $(srctree)/apps/Kconfig.app ]; then echo "GEN    App Kconfig"; $(srctree)/tools/scripts/gen_app_kconfig.sh $(srctree)/apps $(APPS); fi
 	$(Q)if [ ! -f $(srctree)/apps/unittest/Kconfig.test ]; then echo "GEN    App Test Kconfig"; $(srctree)/tools/scripts/gen_test_kconfig.sh $(srctree)/apps/unittest $(COMPONENT_DIRS); fi
 	$(Q)if [ ! -f $(srctree)/tools/toolchain/Kconfig.toolchain ]; then echo "GEN    Tool-chain Kconfig"; $(srctree)/tools/scripts/gen_toolchain_kconfig.sh $(srctree)/tools/toolchain $(TOOLCHAINS); fi
+	$(Q)mkdir -p $(BUILD_DIR_BASE)/crc
+	$(Q)$(HOSTCC) $(srctree)/tools/crc/crc32.c -o $(BUILD_DIR_BASE)/crc/calc_crc32
+
 # ---------------------------------------------------------------------------
 # style format syntax
 # ---------------------------------------------------------------------------
@@ -230,6 +237,7 @@ export DOXYGEN DOXYOBJ_FILES
 list-config:
 	$(summary) $(YELLOW) "List configs in $(srctree)/configs" $(NC)
 	@ls $(srctree)/configs/*_defconfig | sed 's:$(srctree)/configs/::g' | sort
+
 
 #===========================================================================
 
@@ -369,7 +377,7 @@ ifeq ("$(CONFIG_ENABLE_SYNTAX_CHECKING)","y")
 			rm -fr $(BUILD_DIR_BASE)/syntax; \
 		fi; \
 		mkdir -p $(BUILD_DIR_BASE)/syntax; \
-		find $(srctree)/apps -type f -name '*.c' -o -name '*.h' > $(BUILD_DIR_BASE)/syntax/$(UNCRUSTIFY_FILE); \
+		find $(srctree)/core_img -type f -name '*.c' -o -name '*.h' > $(BUILD_DIR_BASE)/syntax/$(UNCRUSTIFY_FILE); \
 		$(srctree)/tools/scripts/z_run_uncrustify.sh -r $(srctree)/tools/scripts/syntax_indent.cfg $(BUILD_DIR_BASE)/syntax/$(UNCRUSTIFY_FILE) $(BUILD_DIR_BASE)/syntax; \
 	fi; \
 	if [ $$? != 0 ]; then \
@@ -490,12 +498,12 @@ OBJCOPY_FLAGS := -O binary
 export CFLAGS CPPFLAGS CXXFLAGS OBJCOPY_FLAGS
 
 # Set host compiler and binutils
-HOSTCC := $(CC)
+HOSTCC := gcc
 HOSTCXX := g++
-HOSTLD := $(LD)
-HOSTAR := $(AR)
-HOSTOBJCOPY := $(OBJCOPY)
-HOSTSIZE := $(SIZE)
+HOSTLD := ld
+HOSTAR := ar
+HOSTOBJCOPY := objcopy
+HOSTSIZE := size
 export HOSTCC HOSTLD HOSTAR HOSTOBJCOPY SIZE
 
 # Set target compiler. Defaults to whatever the user has
@@ -562,6 +570,7 @@ COMPONENT_LIBRARIES = $(filter $(notdir $(COMPONENT_PATHS_BUILDABLE)) $(TEST_COM
 # stored in COMPONENT_LINKER_DEPS, built via component.mk files' COMPONENT_ADD_LINKER_DEPS variable
 $(APP_ELF_ORG): $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/lib$(libcomp).a) $(COMPONENT_LINKER_DEPS)
 	$(summary) $(GREEN)  LD $(notdir $@) $(NC)
+	$(Q)$(srctree)/tools/scripts/z_verify_prebuild_lib.sh $(srctree)/middleware/prebuild $(srctree)/tools/crc/calc_crc.sh $(BUILD_DIR_BASE)/crc
 	$(CC) $(LDFLAGS) -o $@ -Wl,-Map=$(APP_MAP)
 
 $(APP_BIN): $(APP_ELF_ORG)
@@ -577,7 +586,6 @@ endif
 	@$(OBJCOPY) $(IMG_FLAGS) $(APP_ELF_ORG) $(APP_ELF)
 	$(summary) $(GREEN) " Insert section: $(SECTION_NAMES)"$(NC)
 	@$(OBJCOPY) $(OBJCOPY_FLAGS) $< $@
-
 
 doxyfile.inc: $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/$(libcomp)-doxyobj)
 	echo INPUT = $(COMPONENT_DIRS) > doxyfile.inc
@@ -603,6 +611,7 @@ all_binaries: toolchain $(APP_BIN)
 
 $(BUILD_DIR_BASE):
 	mkdir -p $(BUILD_DIR_BASE)
+
 
 # Macro for the recursive sub-make for each component
 # $(1) - component directory
@@ -700,6 +709,21 @@ objdump: toolchain $(APP_BIN)
 	$(summary)""
 	$(summary) $(YELLOW) "Objects Dump to $(APP_OBJDUMP)"$(NC)
 	$(OBJDUMP) -Sx $(APP_ELF) > $(APP_OBJDUMP)
+
+
+QEMU_MCU := $(shell command -v qemu-system-gnuarmeclipse 2> /dev/null)
+ifndef QEMU_MEM_SIZE
+QEMU_MEM_SIZE := 128
+endif
+export QEMU_MEM_SIZE
+
+qemu: $(APP_ELF)
+	if [ -z $(QEMU_MCU) ]; then echo -e $(RED) "Can't find qemu-system-gnuarmeclipse" $(NC); exit 0; fi
+	$(Q)$(QEMU_MCU) --verbose --verbose --board STM32F429I-Discovery --mcu STM32F429ZI -d unimp,guest_errors -m size=$(QEMU_MEM_SIZE) --image $(APP_ELF) --semihosting-config enable=on,target=native
+
+qemu_gdb: $(APP_ELF)
+	if [ -z $(QEMU_MCU) ]; then echo -e $(RED) "Can't find qemu-system-gnuarmeclipse" $(NC); exit 0; fi
+	$(Q)$(QEMU_MCU) --verbose --verbose --board STM32F429I-Discovery --mcu STM32F429ZI --gdb tcp::1234 -S -d unimp,guest_errors -m size=$(QEMU_MEM_SIZE) --image $(APP_ELF) --semihosting-config enable=on,target=native
 
 # ---------------------------------------------------------------------------
 # GDB

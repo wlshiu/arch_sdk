@@ -16,6 +16,9 @@ $ make xxx_defconfig # in configs folder
 ```shell
 $ sudo apt-get -y install flex gperf libncurses5-dev libreadline6 libreadline6-dev automake libtool build-essential cmake make gcc texinfo pkg-config gettext tig
 ```
+    - [qemu-system-gnuarmeclipse](https://github.com/xpack-dev-tools/qemu-arm-xpack/releases/)
+        > this Qemu is for Cortex-M serial
+
 
 # Reference
 * [esp-idf](https://github.com/espressif/esp-idf)

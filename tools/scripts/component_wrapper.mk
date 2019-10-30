@@ -81,7 +81,8 @@ COMPONENT_EMBED_OBJS ?= $(addsuffix .bin.o,$(COMPONENT_EMBED_FILES)) $(addsuffix
 OWN_INCLUDES:=$(abspath $(addprefix $(COMPONENT_PATH)/,$(COMPONENT_ADD_INCLUDEDIRS) $(COMPONENT_PRIV_INCLUDEDIRS)))
 COMPONENT_INCLUDES := $(OWN_INCLUDES) $(filter-out $(OWN_INCLUDES),$(COMPONENT_INCLUDES))
 
-COMPONENT_OBJS += .version.o
+COMPONENT_HEADER_CRC := $(shell $(srctree)/tools/crc/calc_crc.sh $(BUILD_DIR_BASE)/crc $(COMPONENT_PATH)/include)
+COMPONENT_OBJS += .version.o .crc.o
 
 COMPONENT_RELATIVE_PATH := $(subst $(srctree)/,./,$(COMPONENT_PATH))
 
@@ -121,7 +122,10 @@ component_project_vars.mk::
 	@echo 'COMPONENT_LINKER_DEPS += $(call MakeVariablePath,$(call resolvepath,$(COMPONENT_ADD_LINKER_DEPS),$(COMPONENT_PATH)))' >> $@
 	@echo 'COMPONENT_SUBMODULES += $(call MakeVariablePath,$(addprefix $(COMPONENT_PATH)/,$(COMPONENT_SUBMODULES)))' >> $@
 	@echo '$(COMPONENT_NAME)-build: $(addsuffix -build,$(COMPONENT_DEPENDS))' >> $@
+	$(Q)echo '' > $(COMPONENT_PATH)/.version.c
+	$(Q)echo '' > $(COMPONENT_PATH)/.crc.c
 	$(Q)if [ ! -z $(GIT_SHA1) ]; then echo 'unsigned long $(COMPONENT_NAME)_git_sha1(void) { return 0x$(GIT_SHA1); }' > $(COMPONENT_PATH)/.version.c; fi
+	$(Q)if [ ! -z $(COMPONENT_HEADER_CRC) ]; then echo 'unsigned long $(COMPONENT_NAME)_headers_crc32_(void) { return $(COMPONENT_HEADER_CRC); }' > $(COMPONENT_PATH)/.crc.c; fi
 
 
 ################################################################################
