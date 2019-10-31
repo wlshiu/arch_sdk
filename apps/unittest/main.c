@@ -42,7 +42,7 @@ _unity_list_test_items(void)
     int             cnt = 1;
     test_item_t     *pCur = g_pFirst_item;
 
-    unity_printf("\n\nlist the test items:\n");
+    unity_printf("\n\nlist the test items:\n+  l)  list items\n");
 
     while( pCur )
     {
@@ -174,6 +174,13 @@ void unity_run(void)
                     pCur_item = pCur_item->next;
                 }
             }
+            else if( !strncmp(pCmd_args[0], "l", strlen("l")) )
+            {
+                _unity_list_test_items();
+                memset(line, 0x0, sizeof(line));
+                pos = 0;
+                continue;
+            }
             else if( (item_index = strtol(pCmd_args[0], &pCur, 10)) )
             {
                 // single test with index
@@ -203,14 +210,14 @@ int main(void)
     return rval;
 }
 
-TEST("test a + b", "[ADD function]")
+TEST("test a + b", "[ADD function]", TEST_PRIORITY_NORMAL)
 {
     int     a = 5, b = 3;
 
     TEST_ASSERT_EQUAL(7, (a + b));
 }
 
-TEST("test a - b", "[Subtract function]")
+TEST("test a - b", "[Subtract function]", TEST_PRIORITY_NORMAL)
 {
     int     a = 5, b = 3;
 

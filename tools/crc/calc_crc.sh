@@ -22,13 +22,17 @@ if [ $# != 2 ]; then
     help
 fi
 
+if [ ! -d ${out_path} ]; then
+    mkdir -p ${out_path}
+fi
+
 # if [ ! -f ${target} ]; then
-    # gcc crc32.c -o ${target}
+#     gcc ${src_code_path}/crc32.c -o ${target}
 # fi
 
 if [ ! -d ${input_path} ]; then
     exit 0;
-fi 
+fi
 
 find ${input_path} -type f -name '*.h' | xargs cat >> ${out_path}/${out_name}
 

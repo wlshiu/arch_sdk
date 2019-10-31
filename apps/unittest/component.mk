@@ -17,7 +17,7 @@ COMPONENT_ADD_INCLUDEDIRS +=
 ###
 # Directory paths, must be relative to the component directory,
 # which will be added to the include search path for this component's source files only.
-COMPONENT_PRIV_INCLUDEDIRS += unity
+COMPONENT_PRIV_INCLUDEDIRS += include
 
 ###
 # Object files to compile. Default value is a .o file for each source file that is found in COMPONENT_SRCDIRS.
@@ -42,4 +42,3 @@ CXXFLAGS +=
 ###
 # set LDLAGS
 LDLAGS +=
-

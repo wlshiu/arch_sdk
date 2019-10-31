@@ -8,7 +8,7 @@
 PHONY := build-components all build clean distclean info env_setup all_binaries help
 PHONY += menuconfig defconfig savedefconfig %_defconfig
 PHONY += docs size objdump tags TAGS cscope gtags toolchain toolchain-clean release
-PHONY += gdb gdb_server embitz qemu qemu_gdb
+PHONY += gdb gdb_server embitz qemu qemu_gdb %-rebuild
 
 all: info env_setup all_binaries
 # see below for recipe of 'all' target
@@ -22,47 +22,49 @@ help:
 	@echo "----------------------------------------------------------------------"
 	@echo "Welcome to build system. Some useful make targets:"
 	@echo ""
-	@echo "  make menuconfig            - Configure project"
-	@echo "  make defconfig             - Set defaults for all new configuration options"
-	@echo "  make xxx_defconfig         - Use default configuration options which is in"
-	@echo "                                $(srctree)/configs directory."
+	@echo "  make menuconfig            	- Configure project"
+	@echo "  make defconfig             	- Set defaults for all new configuration options"
+	@echo "  make xxx_defconfig         	- Use default configuration options which is in"
+	@echo "                             	   $(srctree)/configs directory."
 	@echo ""
-	@echo "  make toolchain             - Prepare toolchain if you do not use host environment setting."
-	@echo "                               ps. It should be executed before make compile"
-	@echo "  make toolchain-clean       - Clean toolchain"
+	@echo "  make toolchain             	- Prepare toolchain if you do not use host environment setting."
+	@echo "                             	  ps. It should be executed before make compile"
+	@echo "  make toolchain-clean       	- Clean toolchain"
 	@echo ""
-	@echo "  make all                   - Build app, bootloader, partition table"
-	@echo "  make clean                 - Remove most generated files but keep the config and"
-	@echo "                               enough build support to build external modules"
-	@echo "  make distclean             - Remove all generated files + config + various backup files"
+	@echo "  make all                   	- Build app, bootloader, partition table"
+	@echo "  make clean                 	- Remove most generated files but keep the config and"
+	@echo "                             	  enough build support to build external modules"
+	@echo "  make distclean             	- Remove all generated files + config + various backup files"
 	@echo ""
-	@echo "  make release               - Pack SDK for release."
-	@echo "                               Use 'RELEASE_NAME' to set output name."
+	@echo "  make release               	- Pack SDK for release."
+	@echo "                             	  Use 'RELEASE_NAME' to set output name."
 	@echo ""
-	@echo "  make app                   - Build just the app"
-	@echo "  make app-list              - List the executable app"
-	@echo "  make app-clean             - Clean just the app"
+	@echo "  make app                   	- Build just the app"
+	@echo "  make app-list              	- List the executable app"
+	@echo "  make app-clean             	- Clean just the app"
 	@echo ""
-	@echo "  make list                  - List component libraries"
-	@echo "  make list-config           - List config files in $(srctree)/configs"
+	@echo "  make [component-name]-rebuild 	- Re-build component"
 	@echo ""
-	@echo "  make tags/TAGS             - Generate tags file for editors"
-	@echo "  make cscope                - Generate cscope index"
-	@echo "  make gtags                 - Generate GNU GLOBAL index"
+	@echo "  make list                  	- List component libraries"
+	@echo "  make list-config           	- List config files in $(srctree)/configs"
 	@echo ""
-	@echo "  make astyle directory      - Format syntax with directory"
+	@echo "  make tags/TAGS             	- Generate tags file for editors"
+	@echo "  make cscope                	- Generate cscope index"
+	@echo "  make gtags                 	- Generate GNU GLOBAL index"
 	@echo ""
-	@echo "  make docs                  - Generate documentations"
+	@echo "  make astyle directory      	- Format syntax with directory"
+	@echo ""
+	@echo "  make docs                  	- Generate documentations"
 	@echo ""
 	@echo "Development functions"
-	@echo "  make size                  - List section size infomation and output *.nm file"
-	@echo "  make objdump               - Disassemble objects and output *.objdump file"
-	@echo "  make gdb_server            - Start GDB server"
-	@echo "  make gdb                   - Run GDB for development on Linux."
+	@echo "  make size                  	- List section size infomation and output *.nm file"
+	@echo "  make objdump               	- Disassemble objects and output *.objdump file"
+	@echo "  make gdb_server            	- Start GDB server"
+	@echo "  make gdb                   	- Run GDB for development on Linux."
 	@echo ""
-	@echo "  make qemu                  - Simulate with Qemu"
-	@echo "  make qemu_gdb              - Simulate with Qemu and Start GDB"
-	@echo "                               Use 'QEMU_MEM_SIZE' to set SRAM size (KB), default: 128"
+	@echo "  make qemu                  	- Simulate with Qemu"
+	@echo "  make qemu_gdb              	- Simulate with Qemu and Start GDB"
+	@echo "                             	  Use 'QEMU_MEM_SIZE' to set SRAM size (KB), default: 128"
 	@echo ""
 	@echo "  make V=0|1 [targets] 0 => quiet build (default), 1 => verbose build"
 	@echo "  make O=dir [targets] Locate all output files in 'dir', including autoconfig"
@@ -699,6 +701,29 @@ embitz:
 	$(summary) $(BWHITE) ">> Create EmBitz Project"$(NC)
 	$(Q)$(srctree)/tools/scripts/create_embitz.sh $(BUILD_DIR_BASE) $(PROJECT_NAME) $(srctree)/misc/embitz_project_template.ebp
 
+
+ifneq ("$(filter %-rebuild, $(MAKECMDGOALS))","")
+REBUILD_COMPONENT_NAME := $(foreach comp,$(filter %-rebuild, $(MAKECMDGOALS)),$(subst -rebuild,,$(comp)))
+endif
+
+%-rebuild:
+	$(summary) $(YELLOW) "Re-build $(REBUILD_COMPONENT_NAME)"$(NC)
+	$(Q)for act_comp in $(REBUILD_COMPONENT_NAME) ; do \
+			for comp_path in $(COMPONENT_PATHS_BUILDABLE) ; do \
+				comp=`basename $$comp_path`; \
+				if [ "$$comp" == "$$act_comp" ]; then \
+					cur_dir=`pwd`; \
+					git_sha1=`cd $$comp_path && $(GIT) describe --long --all --always --abbrev=8 | sed 's/.*-g\(.*\)/\1/'`; \
+					cd $$cur_dir; \
+					echo $(ECHO_OPTIONS) $(GREEN) "clean $$comp"$(NC); \
+					$(MAKE) -C $(BUILD_DIR_BASE)/$$comp -f $(srctree)/tools/scripts/component_wrapper.mk COMPONENT_MAKEFILE=$$comp_path/component.mk COMPONENT_NAME=$$comp clean; \
+					echo $(ECHO_OPTIONS) $(YELLOW) "build $$comp sha1: $$git_sha1"$(NC); \
+					$(MAKE) -C $(BUILD_DIR_BASE)/$$comp -f $(srctree)/tools/scripts/component_wrapper.mk COMPONENT_MAKEFILE=$$comp_path/component.mk COMPONENT_NAME=$$comp build; \
+				fi; \
+		done; \
+	done
+
+
 size: toolchain $(APP_BIN)
 	$(summary)""
 	$(summary) $(YELLOW) "Size information"$(NC)
@@ -723,6 +748,7 @@ export QEMU_MEM_SIZE
 qemu: $(APP_ELF)
 	if [ -z $(QEMU_MCU) ]; then echo -e $(RED) "Can't find qemu-system-gnuarmeclipse" $(NC); exit 0; fi
 	$(Q)$(QEMU_MCU) --verbose --verbose --board STM32F429I-Discovery --mcu STM32F429ZI -d unimp,guest_errors -m size=$(QEMU_MEM_SIZE) --image $(APP_ELF) --semihosting-config enable=on,target=native
+
 
 qemu_gdb: $(APP_ELF)
 	if [ -z $(QEMU_MCU) ]; then echo -e $(RED) "Can't find qemu-system-gnuarmeclipse" $(NC); exit 0; fi

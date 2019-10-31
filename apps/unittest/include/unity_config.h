@@ -270,6 +270,10 @@ extern void unity_putc(int c);
 //=============================================================================
 #define UNITY_OUTPUT_COLOR
 
+#define TEST_PRIORITY_LOW           200
+#define TEST_PRIORITY_NORMAL        160
+#define TEST_PRIORITY_HIGH          130
+
 typedef struct test_item
 {
     struct test_item    *next;
@@ -287,9 +291,9 @@ typedef struct test_item
 #define UNITY_EXPAND(a, b)          UNITY_EXPAND2(a, b)
 #define UNITY_TEST_UID(what)        UNITY_EXPAND(what, __LINE__)
 
-#define TEST(description, test_name)                                             \
+#define TEST(description, test_name, priority)                                   \
 	static void UNITY_TEST_UID(test_func_)(void);                                \
-	static void __attribute__((constructor)) UNITY_TEST_UID(test_reg_helper_)()  \
+	static void __attribute__((constructor(priority))) UNITY_TEST_UID(test_reg_helper_)()  \
 	{                                                                            \
 		static test_item_t UNITY_TEST_UID(test_desc_) = {                        \
             .pTest_name   = test_name,                                           \
