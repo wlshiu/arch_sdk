@@ -49,6 +49,13 @@ menu "System configuration"
             bool "Release"
 
     endchoice
+
+    config ENABLE_QEMU_SIMULATION
+        bool "Enable Qemu simulation"
+        default n
+        ---help---
+            Enable Qemu simulation
+
 endmenu
 
 source "$COMPONENT_KCONFIGS_PROJBUILD"
@@ -90,10 +97,6 @@ menu "Post build"
 
 endmenu
 
-menu "APP config"
-    #source "$APP_KCONFIGS"
-    source apps/Kconfig.app
-endmenu
 
 menu "Module config"
     source "$COMPONENT_KCONFIGS"
@@ -107,4 +110,9 @@ endmenu
 
 menu "Core Images"
     source core_img/Kconfig.imgs
+endmenu
+
+menu "APP config"
+    #source "$APP_KCONFIGS"
+    source apps/Kconfig.app
 endmenu

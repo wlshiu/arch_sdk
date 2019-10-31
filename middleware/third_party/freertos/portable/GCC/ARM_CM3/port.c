@@ -302,6 +302,7 @@ BaseType_t xPortStartScheduler( void )
 		}
 		#endif
 
+#if !defined(CONFIG_ENABLE_QEMU_SIMULATION)
 		#ifdef configPRIO_BITS
 		{
 			/* Check the FreeRTOS configuration that defines the number of
@@ -310,7 +311,7 @@ BaseType_t xPortStartScheduler( void )
 			configASSERT( ( portMAX_PRIGROUP_BITS - ulMaxPRIGROUPValue ) == configPRIO_BITS );
 		}
 		#endif
-
+#endif
 		/* Shift the priority group value back to its position within the AIRCR
 		register. */
 		ulMaxPRIGROUPValue <<= portPRIGROUP_SHIFT;

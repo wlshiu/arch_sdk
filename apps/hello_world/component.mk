@@ -22,7 +22,11 @@ COMPONENT_PRIV_INCLUDEDIRS +=
 ###
 # Object files to compile. Default value is a .o file for each source file that is found in COMPONENT_SRCDIRS.
 # Overriding this list allows you to exclude source files in COMPONENT_SRCDIRS that would otherwise be compiled.
-COMPONENT_OBJS :=
+ifeq ("$(CONFIG_ENABLE_QEMU_SIMULATION)","y")
+COMPONENT_OBJS := test_qemu.o
+else
+COMPONENT_OBJS := hello.o
+endif
 
 ###
 # Directory paths, must be relative to the component directory, which will be searched for source files (*.cpp, *.c, *.S).
