@@ -113,6 +113,5 @@ menu "Core Images"
 endmenu
 
 menu "APP config"
-    #source "$APP_KCONFIGS"
     source apps/Kconfig.app
 endmenu

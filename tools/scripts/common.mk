@@ -7,6 +7,7 @@ GREEN="\033[0;32m"
 YELLOW="\033[0;33m"
 GREY="\033[0;37m"
 BWHITE="\033[1;37m"
+MAGENTA="\033[1;35m"
 NC="\033[0m"
 
 # Include project config makefile, if it exists.

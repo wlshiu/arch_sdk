@@ -25,6 +25,7 @@ ignore_list=(
 'Kconfig.devices'
 'Kconfig.toolchain'
 'Kconfig.test'
+'Kconfig.imgs'
 'Kconfig.app'
 '**.o'
 '**.d'
@@ -94,4 +95,3 @@ cd ${out_dir}/release
 tar -zc -f ${out_name}.tar.gz ${out_name}
 
 cd ${cur_dir}
-

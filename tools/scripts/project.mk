@@ -162,6 +162,7 @@ IMAGE_DIRS := \
 	$(srctree)/core_img
 
 CORE_IMAGES := $(sort $(foreach imgdir,$(IMAGE_DIRS),$(wildcard $(imgdir)/*.bin)))
+CORE_IMAGES += $(sort $(foreach imgdir,$(IMAGE_DIRS),$(wildcard $(imgdir)/*.elf)))
 export CORE_IMAGES
 
 # ---------------------------------------------------------------------------
@@ -178,8 +179,10 @@ export PROJECT_NAME PROJECT_PATH
 # ---------------------------------------------------------------------------
 GIT := $(shell command -v git 2> /dev/null)
 ifndef GIT
-$(error Can't get "git" command. Please install git.)
+$(error Can not get "git" command. Please install git.)
 endif
+
+export GIT
 
 KCONFIG_AUTO_FILES := \
 	$(srctree)/device/Kconfig.linkscript \
@@ -291,17 +294,19 @@ $(foreach comp,$(DEVICES),$(eval $(call filterConfigComponents,$(shell echo $(su
 # ---------------------------------------------------------------------------
 IMG_FLAGS :=
 SECTION_NAMES :=
+ACT_IMG_NAMES :=
 $(eval IMG_NUM=$(shell echo $$(($(CONFIG_CORE_IMG_NUM)+1))))
 
 define filterConfigImgs
 ifeq ($$(CONFIG_INSERT_CORE_IMAGE_$(1)),y)
 $(2) += --add-section $$(CONFIG_SECTION_NAME_$(1))=$(addprefix $(srctree)/core_img/,$$(CONFIG_IMAGE_NAME_$(1)))
 $(3) += $$(CONFIG_SECTION_NAME_$(1))
+$(4) += $$(CONFIG_IMAGE_NAME_$(1))
 endif
 endef
 
-$(foreach idx,$(shell seq 1 ${IMG_NUM}),$(eval $(call filterConfigImgs,$(idx),IMG_FLAGS,SECTION_NAMES)))
-IMG_FLAGS := $(subst ",,$(IMG_FLAGS))
+$(foreach idx,$(shell seq 1 ${IMG_NUM}),$(eval $(call filterConfigImgs,$(idx),IMG_FLAGS,SECTION_NAMES,ACT_IMG_NAMES)))
+IMG_FLAGS := $(subst \",,$(IMG_FLAGS))
 
 #===========================================================================
 
@@ -395,7 +400,7 @@ endif
 
 toolchain:
 	$(Q)if [ ! -z $(CONFIG_TARGET_TOOLCHAIN_PATH) ] && [ ! -d $(srctree)/tools/toolchain/active ]; then \
-		$(summary) "Un-tar toolchain ... $(CONFIG_TARGET_TOOLCHAIN_PATH)" ; \
+		$(Q)echo "Un-tar toolchain ... $(CONFIG_TARGET_TOOLCHAIN_PATH)" ; \
 		mkdir $(srctree)/tools/toolchain/active ; \
 		$(srctree)/tools/scripts/untar_toolchain.sh $(CONFIG_TARGET_TOOLCHAIN_PATH) $(srctree)/tools/toolchain/active ; \
 	fi;
@@ -580,17 +585,21 @@ $(APP_ELF_ORG): $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(lib
 
 $(APP_BIN): $(APP_ELF_ORG)
 	$(summary) $(YELLOW) "Post Build Steps ................."$(NC)
+	@$(OBJCOPY) $(IMG_FLAGS) $(APP_ELF_ORG) $(APP_ELF)
+	$(summary) $(GREEN) " Insert section: $(SECTION_NAMES)"$(NC)
+	$(summary) $(BWHITE) "     $(ACT_IMG_NAMES)"$(NC)
+	@$(OBJCOPY) $(OBJCOPY_FLAGS) $< $@
+	$(summary) ""
 ifeq ("$(CONFIG_COPY_OUTPUT_FILE_TYPE_BIN)","y")
 	$(summary) $(BWHITE) " Copy '$(APP_BIN)' to \n\t $(srctree)/$(CONFIG_COPY_DESTINATION)"$(NC)
 	$(Q)cp -f $(APP_BIN) $(srctree)/$(CONFIG_COPY_DESTINATION)
 endif
 ifeq ("$(CONFIG_COPY_OUTPUT_FILE_TYPE_ELF)","y")
 	$(summary) $(BWHITE) " Copy '$(APP_ELF)' to \n\t$(srctree)/$(CONFIG_COPY_DESTINATION)"$(NC)
-	$(Q)cp -f $(APP_ELF) $(srctree)/$(CONFIG_COPY_DESTINATION)
+	@$(OBJCOPY) -S -I elf32-little -R .comment -R .xtensa.info $(APP_ELF) $(APP_ELF).lite
+	$(Q)cp -f $(APP_ELF).lite $(srctree)/$(CONFIG_COPY_DESTINATION)/$(PROJECT_NAME).elf
 endif
-	@$(OBJCOPY) $(IMG_FLAGS) $(APP_ELF_ORG) $(APP_ELF)
-	$(summary) $(GREEN) " Insert section: $(SECTION_NAMES)"$(NC)
-	@$(OBJCOPY) $(OBJCOPY_FLAGS) $< $@
+
 
 doxyfile.inc: $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/$(libcomp)-doxyobj)
 	echo INPUT = $(COMPONENT_DIRS) > doxyfile.inc
@@ -624,7 +633,7 @@ $(BUILD_DIR_BASE):
 #
 # Is recursively expanded by the GenerateComponentTargets macro
 define ComponentMake
-+$(MAKE) -C $(BUILD_DIR_BASE)/$(2) -f $(srctree)/tools/scripts/component_wrapper.mk COMPONENT_MAKEFILE=$(1)/component.mk COMPONENT_NAME=$(2) GIT_SHA1=$(shell cd $(1) && $(GIT) describe --long --all --always --abbrev=8 | sed 's/.*-g\(.*\)/\1/')
++$(MAKE) -C $(BUILD_DIR_BASE)/$(2) -f $(srctree)/tools/scripts/component_wrapper.mk COMPONENT_MAKEFILE=$(1)/component.mk COMPONENT_NAME=$(2) GIT_SHA1=$(shell $(srctree)/tools/scripts/z_get_git_sha1.sh $(1))
 endef
 
 # Generate top-level component-specific targets for each component
@@ -635,7 +644,7 @@ define GenerateComponentTargets
 PHONY += $(2)-build $(2)-clean $(2)-doxyobj
 
 $(2)-build:
-	$(summary) $(YELLOW) build $(2) sha1:$(shell cd $(1) && $(GIT) describe --long --all --always --abbrev=8 | sed 's/.*-g\(.*\)/\1/') $(NC)
+	$(summary) $(YELLOW) build $(2) sha1:$(shell $(srctree)/tools/scripts/z_get_git_sha1.sh $(1)) $(NC)
 	$(call ComponentMake,$(1),$(2)) build
 
 $(2)-clean:
