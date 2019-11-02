@@ -57,15 +57,26 @@ COMPONENT_OBJS := \
 	./driver/stm32f4xx_tim.o         \
 	./driver/stm32f4xx_usart.o       \
 	./driver/stm32f4xx_wwdg.o		 \
-	stm32f429i_discovery.o			 \
-	system_stm32f4xx.o				 \
-	./startup_stm32f429.o
+	./bsp/bsp.o		 			     \
+	system_stm32f4xx.o
+
 
 ###
 # Directory paths, must be relative to the component directory, which will be searched for source files (*.cpp, *.c, *.S).
 # Defaults to '.', ie the component directory itself.
 # Override this to specify a different list of directories which contain source files.
-COMPONENT_SRCDIRS += driver
+COMPONENT_SRCDIRS += driver bsp
+
+
+ifeq ($(CONFIG_STM32F429I),y)
+COMPONENT_OBJS += 	\
+	./bsp/stm32f429_439/stm32f429i_discovery.o \
+	./bsp/stm32f429_439/startup_stm32f429.o
+
+COMPONENT_SRCDIRS += bsp/stm32f429_439
+
+endif
+
 
 ###
 # set CFLAGS

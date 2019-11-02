@@ -3,7 +3,7 @@
 # see doc/kconfig-language.txt.
 #
 
-menu "stm32f429i"
+menu "stm32f4"
 
     config STM32F4XX
         bool "use stm32f4xx board"
@@ -14,5 +14,21 @@ menu "stm32f429i"
         bool "use stm32f4 std peripheral driver"
         ---help---
             use stm32f4 std peripheral driver
+
+    choice STM32F4_TARGET_BOARD
+        prompt "target board"
+        default STM32F429I
+        ---help---
+            target board selection
+
+        config STM32F429I
+            bool "stm32f429i"
+
+
+    endchoice
+
+    if STM32F429I
+        source device/stm32f4/bsp/stm32f429_439/Kconfig
+    endif
 
 endmenu
