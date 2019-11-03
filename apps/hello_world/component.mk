@@ -24,6 +24,7 @@ COMPONENT_PRIV_INCLUDEDIRS +=
 # Overriding this list allows you to exclude source files in COMPONENT_SRCDIRS that would otherwise be compiled.
 ifeq ("$(CONFIG_ENABLE_QEMU_SIMULATION)","y")
 COMPONENT_OBJS := test_qemu.o
+# COMPONENT_OBJS := test_uart.o
 else
 COMPONENT_OBJS := hello.o
 endif

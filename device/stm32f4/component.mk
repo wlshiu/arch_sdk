@@ -70,6 +70,7 @@ COMPONENT_SRCDIRS += driver bsp
 
 ifeq ($(CONFIG_STM32F429I),y)
 COMPONENT_OBJS += 	\
+	./bsp/stm32f429_439/bsp_stm32f429_439.o \
 	./bsp/stm32f429_439/stm32f429i_discovery.o \
 	./bsp/stm32f429_439/startup_stm32f429.o
 
