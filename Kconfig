@@ -50,11 +50,11 @@ menu "System configuration"
 
     endchoice
 
-    config ENABLE_QEMU_SIMULATION
-        bool "Enable Qemu simulation"
+    config ENABLE_QEMU_FUNCTIONS
+        bool "Enable Qemu functions"
         default n
         ---help---
-            Enable Qemu simulation
+            Enable Qemu functions if device supports
 
 endmenu
 

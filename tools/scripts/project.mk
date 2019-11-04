@@ -8,7 +8,7 @@
 PHONY := build-components all build clean distclean info env_setup all_binaries help
 PHONY += menuconfig defconfig savedefconfig %_defconfig
 PHONY += docs size objdump tags TAGS cscope gtags toolchain toolchain-clean release
-PHONY += gdb gdb_server embitz qemu qemu_gdb %-rebuild
+PHONY += gdb gdb_server embitz qemu qemu_gdb_server qemu_gdb %-rebuild
 
 all: info env_setup all_binaries
 # see below for recipe of 'all' target
@@ -755,14 +755,28 @@ endif
 export QEMU_MEM_SIZE
 
 qemu: $(APP_ELF)
+ifeq ("$(CONFIG_ENABLE_QEMU_FUNCTIONS)","y")
 	if [ -z $(QEMU_MCU) ]; then echo -e $(RED) "Can't find qemu-system-gnuarmeclipse" $(NC); exit 0; fi
 	$(Q)$(QEMU_MCU) --verbose --verbose --board STM32F429I-Discovery --mcu STM32F429ZI -d unimp,guest_errors -m size=$(QEMU_MEM_SIZE) --image $(APP_ELF) --semihosting-config enable=on,target=native
+else
+	$(summary) $(RED) "It should enable 'ENABLE_QEMU_FUNCTIONS'"$(NC)
+endif
 
-
-qemu_gdb: $(APP_ELF)
+qemu_gdb_server: $(APP_ELF)
+ifeq ("$(CONFIG_ENABLE_QEMU_FUNCTIONS)","y")
 	if [ -z $(QEMU_MCU) ]; then echo -e $(RED) "Can't find qemu-system-gnuarmeclipse" $(NC); exit 0; fi
 	$(Q)$(QEMU_MCU) --verbose --verbose --board STM32F429I-Discovery --mcu STM32F429ZI --gdb tcp::1234 -S -d unimp,guest_errors -m size=$(QEMU_MEM_SIZE) --image $(APP_ELF) --semihosting-config enable=on,target=native
+else
+	$(summary) $(RED) "It should enable 'ENABLE_QEMU_FUNCTIONS'"$(NC)
+endif
 
+qemu_gdb: $(APP_ELF)
+ifeq ("$(CONFIG_ENABLE_QEMU_FUNCTIONS)","y")
+	if [ -z $(QEMU_MCU) ]; then echo -e $(RED) "Can't find qemu-system-gnuarmeclipse" $(NC); exit 0; fi
+	$(Q)$(GDB) --directory=$(srctree) --command=$(srctree)/tools/scripts/gdb_qemu.gdbinit $(APP_ELF)
+else
+	$(summary) $(RED) "It should enable 'ENABLE_QEMU_FUNCTIONS'"$(NC)
+endif
 # ---------------------------------------------------------------------------
 # GDB
 # ---------------------------------------------------------------------------
@@ -773,7 +787,7 @@ gdb_server:
 gdb: $(APP_ELF)
 	$(summary) $(YELLOW) "Run GDB" $(NC)
 	$(summary) $(GREEN) "  target='$(APP_ELF)'" $(NC)
-	$(Q)$(GDB) --dierectory=$(srctree) --command=$(srctree)/tools/scripts/gdb_jlink.gdbinit $(APP_ELF)
+	$(Q)$(GDB) --directory=$(srctree) --command=$(srctree)/tools/scripts/gdb_jlink.gdbinit $(APP_ELF)
 
 # ---------------------------------------------------------------------------
 # pack SDK for release

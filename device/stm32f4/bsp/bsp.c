@@ -29,8 +29,13 @@
 //                  Global Data Definition
 //=============================================================================
 #if defined(CONFIG_STM32F429I)
-extern bsp_desc_t      g_bsp_stm32f429_439;
-static bsp_desc_t       *g_pBSP_desc = &g_bsp_stm32f429_439;
+    #if defined(CONFIG_QEMU_SIM_STM32F429I)
+    extern bsp_desc_t      g_bsp_qemu_stm32f4x9;
+    static bsp_desc_t       *g_pBSP_desc = &g_bsp_qemu_stm32f4x9;
+    #else
+    extern bsp_desc_t      g_bsp_stm32f429_439;
+    static bsp_desc_t       *g_pBSP_desc = &g_bsp_stm32f429_439;
+    #endif
 #endif
 
 //=============================================================================

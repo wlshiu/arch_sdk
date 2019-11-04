@@ -70,9 +70,14 @@ COMPONENT_SRCDIRS += driver bsp
 
 ifeq ($(CONFIG_STM32F429I),y)
 COMPONENT_OBJS += 	\
-	./bsp/stm32f429_439/bsp_stm32f429_439.o \
 	./bsp/stm32f429_439/stm32f429i_discovery.o \
 	./bsp/stm32f429_439/startup_stm32f429.o
+
+ifneq ("$(CONFIG_QEMU_SIM_STM32F429I)","")
+COMPONENT_OBJS += ./bsp/stm32f429_439/bsp_qemu_stm32f4x9.o
+else
+COMPONENT_OBJS += ./bsp/stm32f429_439/bsp_stm32f429_439.o
+endif
 
 COMPONENT_SRCDIRS += bsp/stm32f429_439
 

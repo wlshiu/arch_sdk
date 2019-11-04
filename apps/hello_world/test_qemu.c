@@ -29,6 +29,8 @@
 #include "task.h"
 #include "timers.h"
 
+#include <stdio.h>
+
 
 /** @addtogroup STM32F4_Discovery_Peripheral_Examples
   * @{

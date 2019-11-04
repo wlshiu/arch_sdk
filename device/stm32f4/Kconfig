@@ -6,14 +6,15 @@
 menu "stm32f4"
 
     config STM32F4XX
-        bool "use stm32f4xx board"
+        bool "Use stm32f4xx board"
         ---help---
             use stm32f4xx board
 
     config USE_STDPERIPH_DRIVER
-        bool "use stm32f4 std peripheral driver"
+        bool "Use stm32f4 std peripheral driver"
         ---help---
             use stm32f4 std peripheral driver
+
 
     choice STM32F4_TARGET_BOARD
         prompt "target board"
@@ -24,10 +25,17 @@ menu "stm32f4"
         config STM32F429I
             bool "stm32f429i"
 
-
     endchoice
 
+
     if STM32F429I
+        config QEMU_SIM_STM32F429I
+            bool "Use Qemu to simulate stm32f429i"
+            depends on ENABLE_QEMU_FUNCTIONS
+            default n
+            ---help---
+                Qemu simulation
+
         source device/stm32f4/bsp/stm32f429_439/Kconfig
     endif
 
