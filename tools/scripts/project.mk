@@ -428,7 +428,7 @@ LDFLAGS ?= \
 LDFLAGS += -lc -lm -lnosys $(CPU_FLAGS)
 LDFLAGS += -T$(CONFIG_TARGET_LD_FILE)
 LDFLAGS += -L$(srctree)/middleware/prebuild
-LDFLAGS +=$(foreach plib,$(notdir $(wildcard $(srctree)/middleware/prebuild/*.a)),$(addprefix -l,$(subst lib,,$(basename $(plib)))))
+LDFLAGS += $(foreach plib,$(notdir $(wildcard $(srctree)/middleware/prebuild/*.a)),$(addprefix -l,$(subst lib,,$(basename $(plib)))))
 
 # LDFLAGS += -nostartfiles
 # LDFLAGS += -nostdlib -lstdc++ -lgcc
@@ -610,15 +610,7 @@ doxyfile.inc: $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libco
 # Generation of $(APP_BIN) from $(APP_ELF) is added by the esptool
 # component's Makefile.projbuild
 app: $(APP_BIN)
-ifeq ("$(CONFIG_SECURE_BOOT_ENABLED)$(CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES)","y") # secure boot enabled, but remote sign app image
-	@echo "App built but not signed. Signing step via espsecure.py:"
-	@echo "espsecure.py sign_data --keyfile KEYFILE $(APP_BIN)"
-	@echo "Then flash app command is:"
-	@echo $(ESPTOOLPY_WRITE_FLASH) $(CONFIG_APP_OFFSET) $(APP_BIN)
-else
-	@echo "App built. Default flash app command is:"
-	@echo $(ESPTOOLPY_WRITE_FLASH) $(CONFIG_APP_OFFSET) $(APP_BIN)
-endif
+	$(summary) $(GREEN) " build APP '$(PROJECT_NAME)'" $(NC)
 
 all_binaries: toolchain $(APP_BIN)
 
@@ -679,8 +671,11 @@ endef
 $(foreach component,$(COMPONENT_PATHS_BUILDABLE),$(eval $(call GenerateComponentTargets,$(component),$(notdir $(component)))))
 $(foreach component,$(TEST_COMPONENT_PATHS),$(eval $(call GenerateComponentTargets,$(component),$(lastword $(subst /, ,$(dir $(component))))_test)))
 
-app-clean: $(addsuffix -clean,$(notdir $(COMPONENT_PATHS_BUILDABLE)))
-	$(summary) RM $(APP_ELF)
+
+app-clean:
+	$(summary) $(GREEN) "clean $(PROJECT_NAME)" $(NC)
+	$(MAKE) -C $(BUILD_DIR_BASE)/$(PROJECT_NAME) -f $(srctree)/tools/scripts/component_wrapper.mk COMPONENT_MAKEFILE=$(srctree)/apps/$(PROJECT_NAME)/component.mk COMPONENT_NAME=$(PROJECT_NAME) clean
+	$(summary) RM $(APP_ELF) $(APP_BIN)
 	rm -f $(APP_ELF) $(APP_ELF_ORG) $(APP_BIN) $(APP_MAP) $(APP_SYMBOL) $(APP_OBJDUMP)
 
 #===========================================================================
@@ -720,9 +715,9 @@ endif
 	$(Q)for act_comp in $(REBUILD_COMPONENT_NAME) ; do \
 			for comp_path in $(COMPONENT_PATHS_BUILDABLE) ; do \
 				comp=`basename $$comp_path`; \
-				if [ "$$comp" == "$$act_comp" ]; then \
+				if [ "$$comp" = "$$act_comp" ]; then \
 					cur_dir=`pwd`; \
-					git_sha1=`cd $$comp_path && $(GIT) describe --long --all --always --abbrev=8 | sed 's/.*-g\(.*\)/\1/'`; \
+					git_sha1=`$(srctree)/tools/scripts/z_get_git_sha1.sh $$comp_path`; \
 					cd $$cur_dir; \
 					echo $(ECHO_OPTIONS) $(GREEN) "clean $$comp"$(NC); \
 					$(MAKE) -C $(BUILD_DIR_BASE)/$$comp -f $(srctree)/tools/scripts/component_wrapper.mk COMPONENT_MAKEFILE=$$comp_path/component.mk COMPONENT_NAME=$$comp clean; \

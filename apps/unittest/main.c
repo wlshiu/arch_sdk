@@ -16,6 +16,10 @@
 #include "unity_config.h"
 #include "unity.h"
 
+#if defined(CONFIG_ENABLE_CM_BACKTRACE)
+    #include <stdio.h>
+    #include "cm_backtrace.h"
+#endif
 //=============================================================================
 //                  Constant Definition
 //=============================================================================
@@ -224,3 +228,35 @@ TEST("test a - b", "[Subtract function]", TEST_PRIORITY_NORMAL)
     TEST_ASSERT_EQUAL(2, (a - b));
 }
 
+void HardFault_Handler(void)
+{
+#if defined(CONFIG_ENABLE_CM_BACKTRACE)
+    __asm volatile
+    (
+        " MOV     r0, lr                \n"
+        " MOV     r1, sp                \n"
+        " BL      cm_backtrace_fault    \n"
+    );
+#endif
+
+    __asm volatile("BKPT #01");;
+}
+
+#if defined(CONFIG_ENABLE_CM_BACKTRACE) && defined(CONFIG_USE_FREERTOS_PLATFORM)
+#include "FreeRTOS.h"
+#include "task.h"
+
+void vApplicationTickHook(void)
+{
+    return;
+}
+
+void
+vApplicationStackOverflowHook(
+    TaskHandle_t    xTask,
+    char            *pcTaskName)
+{
+    while(1) {}
+    return;
+}
+#endif

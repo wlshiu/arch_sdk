@@ -267,6 +267,8 @@ typedef struct tskTaskControlBlock 			/* The old naming convention is used to pr
 		StackType_t		*pxEndOfStack;		/*< Points to the highest valid address for the stack. */
 	#endif
 
+    UBaseType_t         uxSizeOfStack;      /*< Support For CmBacktrace >*/
+
 	#if ( portCRITICAL_NESTING_IN_TCB == 1 )
 		UBaseType_t		uxCriticalNesting;	/*< Holds the critical section nesting depth for ports that do not maintain their own count in the port layer. */
 	#endif
@@ -871,6 +873,8 @@ UBaseType_t x;
 			pxNewTCB->pxEndOfStack = pxTopOfStack;
 		}
 		#endif /* configRECORD_STACK_HIGH_ADDRESS */
+
+        pxNewTCB->uxSizeOfStack = ulStackDepth;     /*< Support For CmBacktrace >*/
 	}
 	#else /* portSTACK_GROWTH */
 	{
@@ -5188,6 +5192,30 @@ const TickType_t xConstTickCount = xTickCount;
 	}
 	#endif /* INCLUDE_vTaskSuspend */
 }
+
+
+
+/*-----------------------------------------------------------*/
+/*< Support For CmBacktrace >*/
+StackType_t* vTaskStackAddr(void)
+{
+    return pxCurrentTCB->pxStack;
+}
+
+UBaseType_t vTaskStackSize(void)
+{
+#if ( portSTACK_GROWTH > 0 )
+    return (pxNewTCB->pxEndOfStack - pxNewTCB->pxStack + 1);
+#else /* ( portSTACK_GROWTH > 0 )*/
+    return pxCurrentTCB->uxSizeOfStack;
+#endif /* ( portSTACK_GROWTH > 0 )*/
+}
+
+char* vTaskName(void)
+{
+    return pxCurrentTCB->pcTaskName;
+}
+/*-----------------------------------------------------------*/
 
 /* Code below here allows additional code to be inserted into this source file,
 especially where access to file scope functions and data is needed (for example
