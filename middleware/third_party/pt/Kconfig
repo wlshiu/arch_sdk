@@ -1,0 +1,15 @@
+#
+# For a description of the syntax of this configuration file,
+# see doc/kconfig-language.txt.
+#
+
+
+menu "pt"
+
+    config ENABLE_PT
+        bool "enable protothread module"
+        default n
+        ---help---
+            enable protothreads or not.
+
+endmenu

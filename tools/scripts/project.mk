@@ -326,7 +326,7 @@ $(3) += $(2)
 endif
 endef
 
-ifeq ($(CONFIG_APP_UNITTEST),y)
+ifeq ($(CONFIG_UNITTEST),y)
 $(foreach comp,$(CONFIG_ENABLE_COMPONENTS),$(eval $(call filterTestCases,$(shell echo $(subst .,_,$(comp)) | tr a-z A-Z),$(comp),TEST_COMPONENTS)))
 override TEST_COMPONENTS := $(foreach comp,$(TEST_COMPONENTS),$(foreach compdir,$(COMPONENT_DIRS),$(wildcard $(compdir)/$(comp)/test)))
 TEST_COMPONENT_PATHS := $(TEST_COMPONENTS)
