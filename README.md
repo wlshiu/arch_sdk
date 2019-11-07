@@ -14,7 +14,7 @@ $ make xxx_defconfig # in configs folder
 + dependency
 
 ```shell
-$ sudo apt-get -y install flex gperf libncurses5-dev libreadline6 libreadline6-dev automake autoconf libtool build-essential cmake make gcc texinfo pkg-config gettext git tig
+$ sudo apt-get -y install flex gperf libncurses5-dev libreadline6 automake autoconf libtool build-essential cmake make gcc texinfo pkg-config gettext git tig doxygen
 ```
 
 + Qemu
