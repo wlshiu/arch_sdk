@@ -52,4 +52,3 @@ for comp in "${component_list[@]}"; do
         fi
     fi
 done
-

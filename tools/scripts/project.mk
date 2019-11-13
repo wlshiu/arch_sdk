@@ -230,14 +230,14 @@ $(BUILD_DIR_BASE)/uncrustify/uncrustify:
 		$(srctree)/tools/scripts/build_uncrustify.sh $(BUILD_DIR_BASE)/uncrustify $(srctree)/tools/uncrustify;
 
 
-DOXYOBJ_FILES :=
-DOXYGEN := @doxygen
-docs: doxyfile.inc
-	$(summary) $(YELLOW) "Running doxygen to create documentations" $(NC)
-	@mkdir -p $(srctree)/doc/html
-	$(DOXYGEN) $(srctree)/tools/scripts/doxyfile.mk > doxy.log 2>&1
+# DOXYOBJ_FILES :=
+# DOXYGEN := @doxygen
+# DOXY_OUT_PATH := $(BUILD_DIR_BASE)/doc/html
+# export DOXYGEN DOXYOBJ_FILES DOXY_OUT_PATH
 
-export DOXYGEN DOXYOBJ_FILES
+# docs: $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/$(libcomp)-doxyobj)
+	# $(summary) $(YELLOW) "Running doxygen to create documentations" $(NC)
+
 
 list-config:
 	$(summary) $(YELLOW) "List configs in $(srctree)/configs" $(NC)
@@ -601,12 +601,6 @@ ifeq ("$(CONFIG_COPY_OUTPUT_FILE_TYPE_ELF)","y")
 endif
 
 
-doxyfile.inc: $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/$(libcomp)-doxyobj)
-	echo INPUT = $(COMPONENT_DIRS) > doxyfile.inc
-	echo OUTPUT_DIRECTORY = $(srctree)/doc/html >> doxyfile.inc
-	echo HTML_OUTPUT = $(srctree)/doc/html >> doxyfile.inc
-	echo FILE_PATTERNS = *.h *.c $(DOXYOBJ_FILES) >> doxyfile.inc
-
 # Generation of $(APP_BIN) from $(APP_ELF) is added by the esptool
 # component's Makefile.projbuild
 app: $(APP_BIN)
@@ -687,6 +681,17 @@ quiet_cmd_tags = GEN     $@
 
 tags TAGS cscope gtags:
 	$(call cmd,tags)
+
+# ---------------------------------------------------------------------------
+# doxygen documentations
+# ---------------------------------------------------------------------------
+DOXYOBJ_FILES :=
+DOXYGEN := @doxygen
+DOXY_OUT_PATH := $(BUILD_DIR_BASE)/doc/html
+export DOXYGEN DOXYOBJ_FILES DOXY_OUT_PATH
+
+docs: $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/$(libcomp)-doxyobj)
+	$(summary) $(YELLOW) "Running doxygen to create documentations" $(NC)
 
 # ---------------------------------------------------------------------------
 # list executable apps
@@ -801,8 +806,12 @@ release: $(APP_ELF)
 
 # NB: this ordering is deliberate (app-clean before config-clean),
 # so config remains valid during all component clean targets
-config-clean: app-clean
-clean: config-clean
+config-clean: clean
+clean: $(addsuffix -clean,$(notdir $(COMPONENT_PATHS_BUILDABLE)))
+	$(MAKE) -C $(BUILD_DIR_BASE)/$(PROJECT_NAME) -f $(srctree)/tools/scripts/component_wrapper.mk COMPONENT_MAKEFILE=$(srctree)/apps/$(PROJECT_NAME)/component.mk COMPONENT_NAME=$(PROJECT_NAME) clean
+	$(summary) RM $(APP_ELF) $(APP_BIN)
+	rm -f $(APP_ELF) $(APP_ELF_ORG) $(APP_BIN) $(APP_MAP) $(APP_SYMBOL) $(APP_OBJDUMP)
+
 distclean: clean
 
 .PHONY: $(PHONY)

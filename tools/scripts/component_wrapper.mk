@@ -159,11 +159,22 @@ endif
 
 .PHONY: doxyobj
 
-DOXYOBJ_LST := $(foreach objitem,$(COMPONENT_OBJS), $(addprefix $(COMPONENT_PATH)/,$(objitem)))
+DOXYOBJ_LST := $(foreach objitem,$(COMPONENT_OBJS),$(addprefix $(COMPONENT_PATH)/,$(objitem)))
 DOXYOBJ_LST := $(DOXYOBJ_LST:.o=.c)
-doxyobj:
-	echo $(DOXYOBJ_LST) > doxyobj.lst
+DOXYOBJ_LST := $(foreach objitem,$(DOXYOBJ_LST),$(filter-out %/.version.c,$(objitem)))
+DOXYOBJ_LST := $(foreach objitem,$(DOXYOBJ_LST),$(filter-out %/.crc.c,$(objitem)))
 
+doxyobj:
+	$(Q)echo $(DOXYOBJ_LST) > doxyobj.lst
+	$(Q)mkdir -p $(DOXY_OUT_PATH)/$(COMPONENT_NAME)
+	$(Q)echo PROJECT_NAME = $(COMPONENT_NAME) > doxyfile.inc
+	$(Q)echo LAYOUT_FILE = >> doxyfile.inc
+	$(Q)echo HTML_EXTRA_FILES = $(srctree)/tools/scripts/search.css >> doxyfile.inc
+	$(Q)echo INPUT = `cat doxyobj.lst` >> doxyfile.inc
+	$(Q)echo OUTPUT_DIRECTORY = $(DOXY_OUT_PATH)/$(COMPONENT_NAME) >> doxyfile.inc
+	$(Q)echo HTML_OUTPUT = $(DOXY_OUT_PATH)/$(COMPONENT_NAME) >> doxyfile.inc
+	$(Q)echo FILE_PATTERNS = *.h *.c $(DOXYOBJ_FILES) >> doxyfile.inc
+	$(DOXYGEN) $(srctree)/tools/scripts/doxyfile.mk > doxy.log 2>&1
 
 # Include all dependency files already generated
 -include $(COMPONENT_OBJS:.o=.d)

@@ -12,6 +12,12 @@ NC='\e[0m'
 
 set -e
 
+if uname | grep -iq 'linux'; then
+    PLATFORM='linux'
+else
+    PLATFORM='win32'
+fi
+
 args=("$@")
 out_kconfig="${args[0]}/Kconfig.toolchain"
 
@@ -32,6 +38,10 @@ echo -e "  bool \"Host Environment\"\n" >> ${out_kconfig}
 
 for ((i = 1 ; i < $# ; i++));
 do
+    if ! echo "${args[$i]}" | grep -iq ${PLATFORM}; then
+        continue;
+    fi
+
     filename=$(basename -- "${args[$i]}")
     description=${filename}
 
@@ -74,4 +84,3 @@ done
 echo "  default TARGET_CUSTOMER_TOOLCHAIN if TOOLCHAIN_CUSTOMER" >> ${out_kconfig}
 
 echo -e "\nendmenu\n" >> ${out_kconfig}
-
