@@ -12,9 +12,12 @@ Green='\e[0;32m'
 Cyan='\e[0;36m'
 NC='\e[0m' # No Color
 
+args=("$@")
+
 root_dir=$1
 out_dir=$2
 out_name=$3
+save_lib_sh=$4
 cur_dir=`pwd`
 
 datetime=$(date '+%Y%m%d-%H_%M_%S')
@@ -30,6 +33,15 @@ ignore_list=(
 '**.o'
 '**.d'
 '**.exe'
+'GPATH'
+'GRTAGS'
+'GTAGS'
+'cscope*'
+'tags'
+'.gdb*'
+'**.swp'
+'**.log'
+'*_defconfig'
 ${out_dir}
 )
 
@@ -41,6 +53,7 @@ remove_list=(
 'tools/scripts/kconfig/conf'
 'tools/scripts/kconfig/mconf'
 )
+
 
 if [ -d ${out_dir}/release ]; then
     rm -fr ${out_dir}/release
@@ -63,6 +76,7 @@ tmp_list_1=${out_dir}/release/__tmp_1.lst
 find ${root_dir} -type f \
     ! -path '*/tools/toolchain/active*' \
     ! -path '*/tools/astyle*' \
+    ! -path '*/configs*' \
     ! -path '*/.git*' \
     ! -path '*/.repo*' > ${tmp_list_1}
 
@@ -87,7 +101,21 @@ done
 rm -f ${tmp_list_1}
 rm -f ${pack_list}
 
+mkdir -p ${out_dir}/release/${out_name}/configs
+find ${out_dir}/release/${out_name}/apps -type f -name '*_defconfig' -exec cp -f {} ${out_dir}/release/${out_name}/configs \;
+
 find ${out_dir}/release/${out_name}/ -empty -type d -delete
+
+mkdir -p ${out_dir}/release/${out_name}/middleware/prebuild
+for ((i = 4 ; i < $# ; i++));
+do
+    lib_name=$(echo ${args[$i]} | xargs basename)
+    if [ "${lib_name}" = "CMSIS" ]; then
+        continue
+    fi
+
+    bash ${save_lib_sh} ${lib_name} ${args[$i]} ${out_dir} ${out_dir}/release/${out_name}/middleware/prebuild
+done
 
 echo -e "${Yellow} Pack SDK to ${out_dir}/release ${NC}"
 cd ${out_dir}/release

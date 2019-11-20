@@ -1,6 +1,6 @@
 #!/bin/bash -
 # Copyright (c) 2019, All Rights Reserved.
-# @file    untar_toolchain.sh
+# @file    build_uncrustify.sh
 # @author  Wei-Lun Hsu
 # @version 0.1
 

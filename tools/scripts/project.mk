@@ -77,6 +77,12 @@ $(warning "Build system only supports GNU Make versions 3.81 or newer. You may s
 endif
 endif
 
+
+GAWK := $(shell command -v gawk 2> /dev/null)
+ifndef GAWK
+$(error Can not get "gawk" command. Please install git.)
+endif
+
 # disable built-in make rules, makes debugging saner
 MAKEFLAGS_OLD := $(MAKEFLAGS)
 MAKEFLAGS +=-rR
@@ -94,7 +100,7 @@ export COMMON_MAKEFILES
 
 # Component directories. These directories are searched for components.
 # The project Makefile can override these component dirs, or define extra component directories.
-COMPONENT_DIRS ?= $(PROJECT_PATH)/libs \
+COMPONENT_DIRS ?= $(PROJECT_PATH) \
 				$(EXTRA_MODULE_DIRS) \
 				$(srctree)/middleware/third_party \
 
@@ -228,15 +234,6 @@ $(BUILD_DIR_BASE)/uncrustify/uncrustify:
 		fi; \
 	   	mkdir -p $(BUILD_DIR_BASE)/uncrustify; \
 		$(srctree)/tools/scripts/build_uncrustify.sh $(BUILD_DIR_BASE)/uncrustify $(srctree)/tools/uncrustify;
-
-
-# DOXYOBJ_FILES :=
-# DOXYGEN := @doxygen
-# DOXY_OUT_PATH := $(BUILD_DIR_BASE)/doc/html
-# export DOXYGEN DOXYOBJ_FILES DOXY_OUT_PATH
-
-# docs: $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/$(libcomp)-doxyobj)
-	# $(summary) $(YELLOW) "Running doxygen to create documentations" $(NC)
 
 
 list-config:
@@ -395,6 +392,7 @@ ifeq ("$(CONFIG_ENABLE_SYNTAX_CHECKING)","y")
 		echo $(ECHO_OPTIONS) $(RED) "The syntax are NOT expected !!!"$(NC); \
 		echo $(ECHO_OPTIONS) $(RED) "You can get the examples at $(BUILD_DIR_BASE)/syntax"$(NC); \
 	fi
+	$(Q)$(srctree)/tools/scripts/z_chmod.sh
 endif
 	$(summary) $(YELLOW) "Done..."$(NC)
 
@@ -789,6 +787,10 @@ gdb: $(APP_ELF)
 	$(summary) $(GREEN) "  target='$(APP_ELF)'" $(NC)
 	$(Q)$(GDB) --directory=$(srctree) --command=$(srctree)/tools/scripts/gdb_jlink.gdbinit $(APP_ELF)
 
+cgdb: $(APP_ELF)
+	$(summary) $(YELLOW) "Run GDB" $(NC)
+	$(summary) $(GREEN) "  target='$(APP_ELF)'" $(NC)
+	$(Q)cgdb -d $(GDB) --directory=$(srctree) --command=$(srctree)/tools/scripts/gdb_jlink.gdbinit $(APP_ELF)
 # ---------------------------------------------------------------------------
 # pack SDK for release
 # ---------------------------------------------------------------------------
@@ -797,9 +799,13 @@ RELEASE_NAME := sdk
 endif
 export RELEASE_NAME
 
+PREBUILD_LIBS := $(srctree)/middleware/vango
+PREBUILD_LIBS := $(foreach dir,$(PREBUILD_LIBS),$(wildcard $(dir)/*))
+PREBUILD_LIBS += $(DEVICE_COMPONENT_PATHS)
+
 release: $(APP_ELF)
 	$(summary) $(GREEN) "Prepare release SDK"$(NC)
-	$(Q)$(srctree)/tools/scripts/release_sdk.sh $(srctree) $(BUILD_DIR_BASE) $(RELEASE_NAME)
+	$(Q)$(srctree)/tools/scripts/release_sdk.sh $(srctree) $(BUILD_DIR_BASE) $(RELEASE_NAME) $(srctree)/tools/scripts/z_save_lib.sh $(PREBUILD_LIBS)
 
 
 #===========================================================================
