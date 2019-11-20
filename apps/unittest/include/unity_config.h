@@ -193,7 +193,7 @@ extern "C" {
 /* Define this to enable the unity formatted print function:
  * "UnityPrintFormatted"
  */
-/* #define UNITY_INCLUDE_PRINT_FORMATTED */
+#define UNITY_INCLUDE_PRINT_FORMATTED
 
 
 /* *************************** TOOLSET CUSTOMIZATION ***************************

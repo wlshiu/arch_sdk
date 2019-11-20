@@ -394,7 +394,7 @@ ifeq ("$(CONFIG_ENABLE_SYNTAX_CHECKING)","y")
 	fi
 	$(Q)$(srctree)/tools/scripts/z_chmod.sh
 endif
-	$(summary) $(YELLOW) "Done..."$(NC)
+	$(summary) $(YELLOW)"\nBuild '$(PROJECT_NAME)' Done..."$(NC)
 
 toolchain:
 	$(Q)if [ ! -z $(CONFIG_TARGET_TOOLCHAIN_PATH) ] && [ ! -d $(srctree)/tools/toolchain/active ]; then \
@@ -799,7 +799,6 @@ RELEASE_NAME := sdk
 endif
 export RELEASE_NAME
 
-PREBUILD_LIBS := $(srctree)/middleware/vango
 PREBUILD_LIBS := $(foreach dir,$(PREBUILD_LIBS),$(wildcard $(dir)/*))
 PREBUILD_LIBS += $(DEVICE_COMPONENT_PATHS)
 
