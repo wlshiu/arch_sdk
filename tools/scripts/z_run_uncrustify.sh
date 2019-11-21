@@ -55,5 +55,5 @@ fi
 
 cat ${file_list} | xargs -i diff ${DIFF_OPTION} {} ${output_path}/{} > ${output_path}/syntax.diff
 if [ -s ${output_path}/syntax.diff ]; then
-    cat ${file_list} | xargs -i diff --color -p -u {} ${output_path}/{}
+    cat ${file_list} | xargs -i diff ${DIFF_OPTION} {} ${output_path}/{}
 fi

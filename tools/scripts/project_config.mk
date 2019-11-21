@@ -109,8 +109,8 @@ ifdef BATCH_BUILD  # can't prompt for new config values like on terminal
 	$(call RunConf,conf --olddefconfig)
 endif
 	$(call RunConf,conf --silentoldconfig)
-	touch $(SDKCONFIG_MAKEFILE) $(BUILD_DIR_BASE)/include/autoconfig.h  # ensure newer than autoconfig
-	@if [ ! -z $(XCONFIG) ]; then echo "" > $(XCONFIG); fi
+	$(Q)touch $(SDKCONFIG_MAKEFILE) $(BUILD_DIR_BASE)/include/autoconfig.h  # ensure newer than autoconfig
+	$(Q)if [ ! -z $(XCONFIG) ]; then echo "" > $(XCONFIG); fi
 
 
 else  # "$(MAKE_RESTARTS)" != ""

@@ -8,7 +8,7 @@
 PHONY := build-components all build clean distclean info env_setup all_binaries help
 PHONY += menuconfig defconfig savedefconfig %_defconfig
 PHONY += docs size objdump tags TAGS cscope gtags toolchain toolchain-clean release
-PHONY += gdb gdb_server embitz qemu qemu_gdb_server qemu_gdb %-rebuild
+PHONY += gdb gdb_server embitz qemu qemu_gdb_server qemu_gdb %-rebuild addr2line
 
 all: info env_setup all_binaries
 # see below for recipe of 'all' target
@@ -59,6 +59,7 @@ help:
 	@echo "Development functions"
 	@echo "  make size                  	- List section size infomation and output *.nm file"
 	@echo "  make objdump               	- Disassemble objects and output *.objdump file"
+	@echo "  make addr2line                 - Address to line, use 'ADDRESSES' to set address"	
 	@echo "  make gdb_server            	- Start GDB server"
 	@echo "  make gdb                   	- Run GDB for development on Linux."
 	@echo ""
@@ -745,6 +746,13 @@ objdump: toolchain $(APP_BIN)
 	$(summary) $(YELLOW) "Objects Dump to $(APP_OBJDUMP)"$(NC)
 	$(OBJDUMP) -Sx $(APP_ELF) > $(APP_OBJDUMP)
 
+
+addr2line: $(APP_ELF)
+ifeq ("$(ADDRESSES)","")
+	$(summary) $(RED) "No addresses, please set 'ADDRESSES' !"$(NC)
+else
+	$(Q)$(srctree)/tools/scripts/z_addr2line.sh $(ADDR2LINE) $(APP_ELF) $(ADDRESSES)
+endif
 
 QEMU_MCU := $(shell command -v qemu-system-gnuarmeclipse 2> /dev/null)
 ifndef QEMU_MEM_SIZE

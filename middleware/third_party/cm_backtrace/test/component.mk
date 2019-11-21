@@ -22,8 +22,12 @@ COMPONENT_PRIV_INCLUDEDIRS +=
 ###
 # Object files to compile. Default value is a .o file for each source file that is found in COMPONENT_SRCDIRS.
 # Overriding this list allows you to exclude source files in COMPONENT_SRCDIRS that would otherwise be compiled.
-COMPONENT_OBJS := \
-	test_fault.o
+
+ifeq ("$(CONFIG_USE_FREERTOS_PLATFORM)","y")
+COMPONENT_OBJS := test_fault_freertos.o
+else
+COMPONENT_OBJS := test_fault.o
+endif
 
 ###
 # Directory paths, must be relative to the component directory, which will be searched for source files (*.cpp, *.c, *.S).

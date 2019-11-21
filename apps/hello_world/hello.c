@@ -41,7 +41,7 @@ int main(void)
 {
     int     cnt = 0;
     {
-        bsp_stdio_t     bsp_io ={0};
+        bsp_stdio_t     bsp_io = {0};
         bsp_init(0);
         bsp_get_std_io(&bsp_io);
         g_stdout_str = bsp_io.pf_stdout_string;

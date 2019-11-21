@@ -28,7 +28,7 @@ COMPONENT_OBJS :=
 # Directory paths, must be relative to the component directory, which will be searched for source files (*.cpp, *.c, *.S).
 # Defaults to '.', ie the component directory itself.
 # Override this to specify a different list of directories which contain source files.
-COMPONENT_SRCDIRS +=
+COMPONENT_SRCDIRS += test_freertos.o
 
 ###
 # set CFLAGS

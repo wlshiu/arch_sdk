@@ -34,7 +34,19 @@ void fault_test_by_unalign(void)
 }
 #endif
 
-TEST("test div0",  "[fault test by div0] BREAK)", TEST_PRIORITY_LOW)
+void __attribute__((used)) HardFault_Handler(void)
+{
+    __asm volatile
+    (
+        " MOV     r0, lr                \n"
+        " MOV     r1, sp                \n"
+        " BL      cm_backtrace_fault    \n"
+    );
+
+    __asm volatile("BKPT #01");;
+}
+
+TEST("test div0", "[fault test by div0] (BREAK)", TEST_PRIORITY_LOW)
 {
     volatile int    *SCB_CCR = (volatile int *) 0xE000ED14;  // SCB->CCR
     int x, y, z;

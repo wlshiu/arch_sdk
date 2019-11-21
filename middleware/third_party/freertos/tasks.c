@@ -3388,7 +3388,7 @@ static portTASK_FUNCTION( prvIdleTask, pvParameters )
 
 		#if ( configUSE_IDLE_HOOK == 1 )
 		{
-			extern void vApplicationIdleHook( void );
+			extern void __attribute__((weak)) vApplicationIdleHook( void );
 
 			/* Call the user defined function from within the idle task.  This
 			allows the application designer to add background functionality

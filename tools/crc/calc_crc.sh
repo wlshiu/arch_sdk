@@ -36,9 +36,6 @@ fi
 
 find ${input_path} -type f -name '*.h' | xargs cat | tr -d " \t\n\r" >> ${out_path}/${out_name}
 
-# dos2unix -q -n ${input_file} ${out_path}/${out_name}
-# dos2unix -q ${out_path}/${out_name}
-
 ${target} ${out_path}/${out_name}
 
 rm -f ${out_path}/${out_name}

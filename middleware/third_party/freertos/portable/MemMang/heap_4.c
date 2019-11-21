@@ -245,7 +245,7 @@ void *pvReturn = NULL;
 	{
 		if( pvReturn == NULL )
 		{
-			extern void vApplicationMallocFailedHook( void );
+			extern void __attribute__((weak)) vApplicationMallocFailedHook( void );
 			vApplicationMallocFailedHook();
 		}
 		else
