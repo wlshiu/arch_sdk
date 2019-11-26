@@ -22,13 +22,13 @@ COMPONENT_PRIV_INCLUDEDIRS +=
 ###
 # Object files to compile. Default value is a .o file for each source file that is found in COMPONENT_SRCDIRS.
 # Overriding this list allows you to exclude source files in COMPONENT_SRCDIRS that would otherwise be compiled.
-COMPONENT_OBJS :=
+COMPONENT_OBJS := test_freertos.o
 
 ###
 # Directory paths, must be relative to the component directory, which will be searched for source files (*.cpp, *.c, *.S).
 # Defaults to '.', ie the component directory itself.
 # Override this to specify a different list of directories which contain source files.
-COMPONENT_SRCDIRS += test_freertos.o
+COMPONENT_SRCDIRS +=
 
 ###
 # set CFLAGS

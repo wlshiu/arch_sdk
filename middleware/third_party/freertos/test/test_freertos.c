@@ -12,6 +12,7 @@
 
 
 #include <stdio.h>
+#include <string.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "bsp.h"
@@ -73,9 +74,14 @@ void vApplicationIdleHook(void)
     return;
 }
 
+void vApplicationTickHook(void)
+{
+    return;
+}
+
 void vApplicationStackOverflowHook(xTaskHandle *pxTask, signed char *pcTaskName)
 {
-    log_out("stack overflow in task %08x %s", pxTask, (portCHAR *)pcTaskName);
+    log_out("stack overflow in task %08lx %s", (uint32_t)pxTask, (portCHAR *)pcTaskName);
 
     /* If the parameters have been corrupted then inspect pxCurrentTCB to
      * identify which task has overflowed its stack.

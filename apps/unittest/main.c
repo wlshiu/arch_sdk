@@ -235,7 +235,7 @@ void HardFault_Handler(void)
 }
 #endif
 
-#if defined(CONFIG_ENABLE_CM_BACKTRACE) && defined(CONFIG_USE_FREERTOS_PLATFORM)
+#if 0//defined(CONFIG_ENABLE_CM_BACKTRACE) && defined(CONFIG_USE_FREERTOS_PLATFORM)
 #include "FreeRTOS.h"
 #include "task.h"
 
