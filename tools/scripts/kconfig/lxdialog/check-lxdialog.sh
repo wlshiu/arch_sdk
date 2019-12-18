@@ -4,15 +4,11 @@
 # What library to link
 ldflags()
 {
-	if [ $(uname -s) == "Darwin" ]; then 
-		#OSX seems to need ncurses too
-		echo -n "-lncurses "
-	fi
 	pkg-config --libs ncursesw 2>/dev/null && exit
 	pkg-config --libs ncurses 2>/dev/null && exit
 	for ext in so a dll.a dylib ; do
 		for lib in ncursesw ncurses curses ; do
-			$cc -print-file-name=lib${lib}.${ext} $extra_libs | grep -q /
+			$cc -print-file-name=lib${lib}.${ext} | grep -q /
 			if [ $? -eq 0 ]; then
 				echo "-l${lib}"
 				exit
@@ -40,10 +36,6 @@ ccflags()
 		echo '-DCURSES_LOC="<ncurses.h>"'
 	else
 		echo '-DCURSES_LOC="<curses.h>"'
-	fi
-	if [ $(uname -s) == "Darwin" ]; then
-		#OSX doesn't have libintl
-		echo -n "-DKBUILD_NO_NLS -Wno-format-security "
 	fi
 }
 
