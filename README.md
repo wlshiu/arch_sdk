@@ -24,7 +24,9 @@ $ sudo apt-get -y install flex gperf libncurses5-dev libreadline6 automake autoc
 
     - in serial0 press `Ctrl-Alt-1`
         switch to QEMU monitor
+# ToDo
 
++ Add device tree mechanism
 
 # Reference
 * [esp-idf](https://github.com/espressif/esp-idf)
