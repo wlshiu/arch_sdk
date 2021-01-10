@@ -43,10 +43,24 @@ menu "System configuration"
             To override any of these settings, set CFLAGS and/or CPPFLAGS
 
         config OPTIMIZATION_LEVEL_DEBUG
-            bool "Debug"
+            bool "Debug (no optimization)"
+            ---help---
+                CFLAG with -O0 and -g
+
+        config OPTIMIZATION_LEVEL_1
+            bool "Debug (Level 1)"
+            ---help---
+                CFLAG with -O1 and -g
+
+        config OPTIMIZATION_LEVEL_2
+            bool "Debug (Level 2)"
+            ---help---
+                CFLAG with -O2 and -g
 
         config OPTIMIZATION_LEVEL_RELEASE
             bool "Release"
+            ---help---
+                CFLAG with -O3
 
     endchoice
 

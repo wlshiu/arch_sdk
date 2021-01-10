@@ -1,0 +1,30 @@
+#
+# For a description of the syntax of this configuration file,
+# see doc/kconfig-language.txt.
+#
+
+
+menu "evb"
+
+    choice DEBUG_PORT
+        prompt "Target Debug Port"
+        default DEBUG_PORT_UART
+        ---help---
+            Select the debug port.
+
+        config DEBUG_PORT_UART
+            bool "uart debug port"
+
+    endchoice
+
+    if DEBUG_PORT_UART
+
+        config DEBUG_PORT_UART_ID
+            int "UART debug port ID"
+            default 0
+            ---help---
+                Set uart debug output port ID.
+
+    endif
+
+endmenu

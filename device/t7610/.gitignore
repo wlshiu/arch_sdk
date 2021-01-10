@@ -1,0 +1,135 @@
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+*/.gdb*
+
+# trace files
+tags
+TAGS
+ID
+cscope*
+GTAGS
+GPATH
+GRTAGS
+GSYMS
+
+# backup files
+*.orig
+*.bak
+*.swp
+*.un~
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+*.bin
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+# SI
+*.IAB
+*.IAD
+*.IMB
+*.IMD
+*.PFI
+*.PO
+*.PR
+*.PRI
+*.PS
+*.WK3
+*.ncb
+*.user
+*.suo
+
+# Misc
+*.depend
+*.layout
+*.emDepend
+*.emLayout
+*.elay
+obj/*
+bin/*
+*/build/*
+*.bak
+*.pyc
+*/.waf-*/*
+*/.lock-waf*
+*.xml
+*/build/*
+*/netanim-*/*
+*.pcap
+*/scratch/*
+*.log
+*.toolchain
+*.7z
+*.gz
+*.tar
+*.xz
+*.bz2
+**/out/*
+**/Listings/*
+**/Objects/*
+*.uvguix.*
+*.uvgui.*
+**/JLinkLog.txt
+**/toolchain.env
+**/.config*
+**/Kconfig.app
+**/Kconfig.linkscript
+**/Kconfig.toolchain
+**/Kconfig.devices
+**/Kconfig.imgs
+tools/toolchain/active/*
+sdkconfig
+autoconfig
+*_defconfig
+**/doxyfile.inc
+**/doxy.log
+out/*
+doc/html/*
+**/doxygen_sqlite3.db
+**/.version.c
+**/.crc.c

@@ -1,0 +1,113 @@
+#
+# For a description of the syntax of this configuration file,
+# see doc/kconfig-language.txt.
+#
+
+menu "t7610"
+
+    config CPU_ARM_CM4
+        def_bool y
+
+    config CHIP_ALIAS_NIGHTHAWK
+        def_bool y
+
+    config CHIP_DEVICE_ID
+        string "chip device ID"
+        default "T7610"
+        ---help---
+            Chip ID
+
+    config SYSTEM_STACK_SIZE
+        int "The size of system STACK size (Bytes)"
+        default "2048"
+        ---help---
+            The size of system stack size.
+
+    config SYSTEM_HEAP_SIZE
+        int "The size of system HEAP size (Bytes)"
+        default "64"
+        ---help---
+            The size of system heap size.
+
+    config AUTHENTICATION_MODULAR_NUMBER
+        int
+        default 22509125
+
+    choice REMAP_TYPE
+        prompt "target remap type"
+        default REMAP_0
+        ---help---
+            target remap selection
+
+        config REMAP_0
+            bool "remap 0"
+            ---help---
+                Boot from Flash
+
+        config REMAP_2
+            bool "remap 2"
+            ---help---
+                Boot from SRAM (0x40000000 mapps to 0x00000000)
+
+    endchoice
+
+    config TARGET_REMAP_TYPE
+        int
+        default 0 if REMAP_0
+        default 2 if REMAP_2
+        ---help---
+            target memory mapping type
+
+    config ENABLE_ETH
+        bool "Enable ethernet"
+        default n
+        ---help---
+            enable ethernet or not
+
+    config ENABLE_EXCEPTION_INFO
+        bool "enable exception info"
+        default n
+        ---help---
+            enable dump exception info when system hang
+
+    choice T7610_TARGET_BOARD
+        prompt "target board"
+        default T7610_EVB
+        ---help---
+            target board selection
+
+        config T7610_EVB
+            bool "T7610 EVB"
+
+        config T7610_FPGA
+            bool "T7610 FPGA"
+
+    endchoice
+
+    if T7610_FPGA
+        source device/t7610/bsp/fpga/Kconfig
+    endif
+
+    if T7610_EVB
+        source device/t7610/bsp/evb/Kconfig
+    endif
+
+    if CPU_ARM_CM4
+
+        # config ENABLE_DETECT_UNALIGNED
+        #     default n
+        #     bool "enable detect un-aligned memory access"
+        #     ---help---
+        #         ARM Contex M support 'Usage Fault'
+
+        config ENABLE_DETECT_DIV0
+            bool "enable detect divide by zero"
+            default y
+            ---help---
+                ARM Contex M support 'Usage Fault'
+
+    endif
+
+    source device/t7610/test/Kconfig
+
+endmenu
