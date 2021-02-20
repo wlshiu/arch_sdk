@@ -1,10 +1,8 @@
 # Makefile support for the menuconfig system
-
-#Find all Kconfig files for all components
-COMPONENT_KCONFIGS := $(foreach component,$(COMPONENT_PATHS),$(wildcard $(component)/Kconfig))
-COMPONENT_KCONFIGS_PROJBUILD := $(foreach component,$(COMPONENT_PATHS),$(wildcard $(component)/Kconfig.projbuild))
-
-COMPONENT_KCONFIGS := $(filter-out $(srctree)/apps/%,$(COMPONENT_KCONFIGS))
+KCONFIG_CONFIG   	:= autoconfig
+MENUCONFIG_STYLE 	:= default  # default/monochrome/aquatic
+KCONFIG_AUTOHEADER 	:= autoconfig.h
+export KCONFIG_CONFIG MENUCONFIG_STYLE KCONFIG_AUTOHEADER
 
 #For doing make menuconfig etc
 KCONFIG_TOOL_DIR=$(srctree)/tools/scripts/kconfig
@@ -18,13 +16,8 @@ SDKCONFIG ?= $(BUILD_OUTPUT)/autoconfig
 ## TODO: default config
 SDKCONFIG_DEFAULTS ?= $(srctree)/apps/autoconfig.defaults
 
-# reset MAKEFLAGS as the menuconfig makefile uses implicit compile rules
-$(KCONFIG_TOOL_DIR)/mconf $(KCONFIG_TOOL_DIR)/conf:
-	MAKEFLAGS=$(ORIGINAL_MAKEFLAGS) CC=$(HOSTCC) LD=$(HOSTLD) \
-	$(MAKE) -C $(KCONFIG_TOOL_DIR)
-
 #-----------------------------------------------------------------
-PHONY := config-clean distclean defconfig menuconfig savedefconfig %_defconfig
+PHONY := clean-config distclean defconfig menuconfig %_defconfig
 
 XCONFIG := autoconfig
 
@@ -72,45 +65,38 @@ ifeq ("$(MAKE_RESTARTS)","")
 # depend on any prerequisite that may cause a make restart as part of
 # the prerequisite's own recipe.
 
-menuconfig: env_setup $(KCONFIG_TOOL_DIR)/mconf
+menuconfig: env_setup
 	$(summary) $(YELLOW) MENUCONFIG $(NC)
-ifdef BATCH_BUILD
-	@echo "Can't run interactive configuration inside non-interactive build process."
-	@echo ""
-	@echo "Open a command line terminal and run 'make menuconfig' from there."
-	@echo "See esp-idf documentation for more details."
-	@exit 1
-else
-	$(call RunConf,mconf)
-endif
+#	$(call RunConf,mconf)
+	$(Q)$(PYTHON) $(srctree)/tools/scripts/menuconfig.py $(srctree)/Kconfig
+	$(Q)$(PYTHON) $(srctree)/tools/scripts/genconfig.py --header-path $(BUILD_DIR_BASE)/include/autoconfig.h --config-out $(BUILD_DIR_BASE)/$(KCONFIG_CONFIG) $(srctree)/Kconfig
 
 # defconfig creates a default config, based on SDKCONFIG_DEFAULTS if present
-defconfig: env_setup $(KCONFIG_TOOL_DIR)/conf toolchain
+defconfig: env_setup toolchain
 	$(summary) $(YELLOW) DEFCONFIG $(NC)
 ifneq ("$(wildcard $(SDKCONFIG_DEFAULTS))","")
 	cat $(SDKCONFIG_DEFAULTS) >> $(SDKCONFIG)  # append defaults to autoconfig, will override existing values
 endif
-	$(call RunConf,conf --olddefconfig)
+#	$(call RunConf,conf --olddefconfig)
 
 
-%_defconfig: env_setup $(KCONFIG_TOOL_DIR)/conf toolchain
-	$(call RunConf,conf --defconfig=$(srctree)/configs/$@)
 
-
-savedefconfig: env_setup $(KCONFIG_TOOL_DIR)/conf $(SDKCONFIG) $(COMPONENT_KCONFIGS)
-	$(call RunConf,conf --$@=defconfig)
+%_defconfig: env_setup toolchain
+	$(summary) $(YELLOW) XDEFCONFIG ($@) $(NC)
+	# $(call RunConf,conf --defconfig=$(srctree)/configs/$@)
+	$(Q)$(PYTHON) $(srctree)/tools/scripts/defconfig.py --kconfig $(srctree)/Kconfig $(srctree)/configs/$@
+	$(Q)$(PYTHON) $(srctree)/tools/scripts/genconfig.py --header-path $(BUILD_DIR_BASE)/include/autoconfig.h --config-out $(BUILD_DIR_BASE)/$(KCONFIG_CONFIG) $(srctree)/Kconfig
 
 
 # if neither defconfig or menuconfig are requested, use the GENCONFIG rule to
 # ensure generated config files are up to date
-$(SDKCONFIG_MAKEFILE) $(BUILD_DIR_BASE)/include/autoconfig.h: $(KCONFIG_TOOL_DIR)/conf $(SDKCONFIG) $(COMPONENT_KCONFIGS) $(COMPONENT_KCONFIGS_PROJBUILD) | $(call prereq_if_explicit,defconfig) $(call prereq_if_explicit,menuconfig) $(call prereq_if_explicit,savedefconfig) $(call prereq_if_explicit,%_defconfig)
+$(SDKCONFIG_MAKEFILE) $(BUILD_DIR_BASE)/include/autoconfig.h: $(SDKCONFIG) $(COMPONENT_KCONFIGS) $(COMPONENT_KCONFIGS_PROJBUILD) | $(call prereq_if_explicit,defconfig) $(call prereq_if_explicit,menuconfig) $(call prereq_if_explicit,%_defconfig)
 	$(summary) $(YELLOW) GENCONFIG $(NC)
-ifdef BATCH_BUILD  # can't prompt for new config values like on terminal
-	$(call RunConf,conf --olddefconfig)
-endif
-	$(call RunConf,conf --silentoldconfig)
+	$(Q)$(PYTHON) $(srctree)/tools/scripts/genconfig.py --header-path $(BUILD_DIR_BASE)/include/autoconfig.h --config-out $(BUILD_DIR_BASE)/$(KCONFIG_CONFIG) $(srctree)/Kconfig
+	$(Q)cp -f $(BUILD_DIR_BASE)/$(KCONFIG_CONFIG) $(SDKCONFIG_MAKEFILE)
 	$(Q)touch $(SDKCONFIG_MAKEFILE) $(BUILD_DIR_BASE)/include/autoconfig.h  # ensure newer than autoconfig
-	$(Q)if [ ! -z $(XCONFIG) ]; then echo "" > $(XCONFIG); fi
+	$(Q)if [ ! -z $(XCONFIG) ]; then cat $(BUILD_DIR_BASE)/autoconfig > $(XCONFIG); fi
+	$(Q)-rm -f $(BUILD_DIR_BASE)/autoconfig.o $(BUILD_DIR_BASE)/autoconfig.tar.gz
 
 
 else  # "$(MAKE_RESTARTS)" != ""
@@ -118,13 +104,12 @@ else  # "$(MAKE_RESTARTS)" != ""
 defconfig:
 menuconfig:
 %_defconfig:
-savedefconfig:
 endif
 
 
-config-clean:
+clean-config:
 	$(summary RM CONFIG)
-	rm -rf $(BUILD_DIR_BASE)/include/config $(BUILD_DIR_BASE)/include/autoconfig.h
+	-rm -rf $(BUILD_DIR_BASE)/include/config $(BUILD_DIR_BASE)/include/autoconfig.h $(BUILD_DIR_BASE)/autoconfig.o $(BUILD_DIR_BASE)/autoconfig.tar.gz
 
 distclean:
 	rm -fr $(BUILD_OUTPUT) $(KCONFIG_AUTO_FILES) $(srctree)/tools/toolchain/active

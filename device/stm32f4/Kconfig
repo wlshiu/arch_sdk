@@ -36,7 +36,7 @@ menu "stm32f4"
             ---help---
                 Qemu simulation
 
-        source device/stm32f4/bsp/stm32f429_439/Kconfig
+        source "device/stm32f4/bsp/stm32f429_439/Kconfig"
     endif
 
 endmenu

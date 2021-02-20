@@ -20,10 +20,10 @@ menu "stm32f0"
     endchoice
 
     if STM32F0_EVB
-        source device/stm32f0/bsp/evb/Kconfig
+        source "device/stm32f0/bsp/evb/Kconfig"
     endif
 
     if STM32F0_RDB
-        source device/stm32f0/bsp/rdb/Kconfig
+        source "device/stm32f0/bsp/rdb/Kconfig"
     endif
 endmenu

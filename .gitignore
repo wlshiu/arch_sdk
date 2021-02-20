@@ -115,9 +115,13 @@ bin/*
 **/Kconfig.devices
 **/Kconfig.imgs
 **/Kconfig.test
+**/Kconfig.prebuild
+**/Kconfig.components
 tools/toolchain/active/*
 sdkconfig
 autoconfig
+autoconfig.old
+.config*
 *_defconfig
 **/doxyfile.inc
 **/doxy.log

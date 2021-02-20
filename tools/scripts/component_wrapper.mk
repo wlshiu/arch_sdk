@@ -46,14 +46,12 @@ COMPONENT_EMBED_TXTFILES ?=
 COMPONENT_ADD_INCLUDEDIRS = include
 COMPONENT_ADD_LDFLAGS = -l$(COMPONENT_NAME)
 
-
 ################################################################################
 # 2) Include the component.mk for the specific component (COMPONENT_MAKEFILE) to
 #     override variables & optionally define custom targets.
 ################################################################################
 
 include $(COMPONENT_MAKEFILE)
-
 
 ################################################################################
 # 3) Set variables that depend on values that may changed by component.mk
@@ -70,6 +68,7 @@ COMPONENT_OBJS += $(foreach compsrcdir,$(COMPONENT_SRCDIRS),$(patsubst %.S,%.o,$
 COMPONENT_OBJS := $(patsubst $(COMPONENT_PATH)/%,%,$(COMPONENT_OBJS))
 endif
 
+
 # Object files with embedded binaries to add to the component library
 # Correspond to the files named in COMPONENT_EMBED_FILES & COMPONENT_EMBED_TXTFILES
 COMPONENT_EMBED_OBJS ?= $(addsuffix .bin.o,$(COMPONENT_EMBED_FILES)) $(addsuffix .txt.o,$(COMPONENT_EMBED_TXTFILES))
@@ -83,9 +82,6 @@ COMPONENT_INCLUDES := $(OWN_INCLUDES) $(filter-out $(OWN_INCLUDES),$(COMPONENT_I
 
 COMPONENT_HEADER_CRC := $(shell $(srctree)/tools/crc/calc_crc.sh $(BUILD_DIR_BASE)/crc $(COMPONENT_PATH)/include)
 COMPONENT_OBJS += .version.o .crc.o
-
-COMPONENT_RELATIVE_PATH := $(subst $(srctree)/,./,$(COMPONENT_PATH))
-
 ################################################################################
 # 4) Define a target to generate component_project_vars.mk Makefile which
 # contains common per-component settings which are included directly in the
@@ -124,7 +120,8 @@ component_project_vars.mk::
 	@echo '$(COMPONENT_NAME)-build: $(addsuffix -build,$(COMPONENT_DEPENDS))' >> $@
 	$(Q)echo '' > $(COMPONENT_PATH)/.version.c
 	$(Q)echo '' > $(COMPONENT_PATH)/.crc.c
-	$(Q)if [ ! -z $(GIT_SHA1) ]; then echo 'unsigned long $(COMPONENT_NAME)_git_sha1(void) { return 0x$(GIT_SHA1); }' > $(COMPONENT_PATH)/.version.c; fi
+	$(Q)if [ ! -z $(GIT_SHA1_ID) ]; then echo 'unsigned long $(COMPONENT_NAME)_git_sha_id_(void) { return 0x$(GIT_SHA1_ID); }' > $(COMPONENT_PATH)/.version.c; fi
+	$(Q)echo "unsigned long $(COMPONENT_NAME)_git_commit_date_(void) { return 0x$(shell $(srctree)/tools/scripts/z_get_git_commit_date.sh); }" >> $(COMPONENT_PATH)/.version.c;
 	$(Q)if [ ! -z $(COMPONENT_HEADER_CRC) ]; then echo 'unsigned long $(COMPONENT_NAME)_headers_crc32_(void) { return $(COMPONENT_HEADER_CRC); }' > $(COMPONENT_PATH)/.crc.c; fi
 
 
@@ -146,6 +143,12 @@ $(COMPONENT_LIBRARY): $(COMPONENT_OBJS) $(COMPONENT_EMBED_OBJS)
 	$(summary) $(GREEN) AR $@ $(NC)
 	rm -f $@
 	$(AR) cru $@ $^
+	$(Q)rm -f $(BUILD_DIR_BASE)/autoconfig.o $(BUILD_DIR_BASE)/autoconfig.tar.gz
+	$(Q)cur_dir=`pwd`; cd $(BUILD_DIR_BASE); \
+		$(OBJCOPY) -I binary -O elf32-littlearm -B arm -L _binary_autoconfig_end -L _binary_autoconfig_size -L _binary_autoconfig_start autoconfig $(BUILD_DIR_BASE)/autoconfig.o; \
+		tar -czf autoconfig.tar.gz autoconfig; \
+		cd $$cur_dir;
+	$(AR) -q $(COMPONENT_LIBRARY) $(BUILD_DIR_BASE)/autoconfig.o
 endif
 
 # If COMPONENT_OWNCLEANTARGET is not set, define a phony clean target
@@ -163,6 +166,7 @@ DOXYOBJ_LST := $(foreach objitem,$(COMPONENT_OBJS),$(addprefix $(COMPONENT_PATH)
 DOXYOBJ_LST := $(DOXYOBJ_LST:.o=.c)
 DOXYOBJ_LST := $(foreach objitem,$(DOXYOBJ_LST),$(filter-out %/.version.c,$(objitem)))
 DOXYOBJ_LST := $(foreach objitem,$(DOXYOBJ_LST),$(filter-out %/.crc.c,$(objitem)))
+DOXYOBJ_LST += $(shell find $(COMPONENT_PATH)/include -type f -name '*.h')
 
 doxyobj:
 	$(Q)echo $(DOXYOBJ_LST) > doxyobj.lst
@@ -173,7 +177,7 @@ doxyobj:
 	$(Q)echo INPUT = `cat doxyobj.lst` >> doxyfile.inc
 	$(Q)echo OUTPUT_DIRECTORY = $(DOXY_OUT_PATH)/$(COMPONENT_NAME) >> doxyfile.inc
 	$(Q)echo HTML_OUTPUT = $(DOXY_OUT_PATH)/$(COMPONENT_NAME) >> doxyfile.inc
-	$(Q)echo FILE_PATTERNS = *.h *.c $(DOXYOBJ_FILES) >> doxyfile.inc
+	$(Q)echo FILE_PATTERNS = $(DOXYOBJ_FILES) >> doxyfile.inc
 	$(DOXYGEN) $(srctree)/tools/scripts/doxyfile.mk > doxy.log 2>&1
 
 # Include all dependency files already generated
@@ -182,11 +186,15 @@ doxyobj:
 # This pattern is generated for each COMPONENT_SRCDIR to compile the files in it.
 define GenerateCompileTargets
 # $(1) - directory containing source files, relative to $(COMPONENT_PATH)
+$(1)/%.o: $$(COMPONENT_PATH)/$(1)/%.carm $(COMMON_MAKEFILES) $(COMPONENT_MAKEFILE) | $(1)
+	$$(summary) CC $$@
+	$$(CC) $$(addprefix -I ,$$(COMPONENT_INCLUDES)) $$(addprefix -I ,$$(COMPONENT_EXTRA_INCLUDES)) -I$(1) $$(CFLAGS) -marm -mthumb-interwork -x c -c $$< -o $$@
+
 $(1)/%.o: $$(COMPONENT_PATH)/$(1)/%.c $(COMMON_MAKEFILES) $(COMPONENT_MAKEFILE) | $(1)
 	$$(summary) CC $$@
 	$$(Q)echo $$(COMPONENT_RELATIVE_PATH)/$$@ >> $$(COMPONENT_NAME).slst
 	$$(Q)echo $$(addprefix -I ,$$(COMPONENT_INCLUDES)) >> $$(COMPONENT_NAME).incp
-	$$(CC) $$(addprefix -I ,$$(COMPONENT_INCLUDES)) $$(addprefix -I ,$$(COMPONENT_EXTRA_INCLUDES)) -I$(1) $$(CFLAGS) $$(CPPFLAGS) -c $$< -o $$@
+	$$(CC) $$(addprefix -I ,$$(COMPONENT_INCLUDES)) $$(addprefix -I ,$$(COMPONENT_EXTRA_INCLUDES)) -I$(1) $$(CFLAGS) $$(THUMB_FLAGS) $$(CPPFLAGS) -c $$< -o $$@
 
 $(1)/%.o: $$(COMPONENT_PATH)/$(1)/%.cpp $(COMMON_MAKEFILES) $(COMPONENT_MAKEFILE) | $(1)
 	$$(summary) CXX $$@
@@ -194,7 +202,7 @@ $(1)/%.o: $$(COMPONENT_PATH)/$(1)/%.cpp $(COMMON_MAKEFILES) $(COMPONENT_MAKEFILE
 
 $(1)/%.o: $$(COMPONENT_PATH)/$(1)/%.S $(COMMON_MAKEFILES) $(COMPONENT_MAKEFILE) | $(1)
 	$$(summary) AS $$@
-	$$(CC) $$(addprefix -I ,$$(COMPONENT_INCLUDES)) $$(addprefix -I ,$$(COMPONENT_EXTRA_INCLUDES)) -I$(1) $$(CPPFLAGS) -c $$< -o $$@
+	$$(CC) $$(addprefix -I ,$$(COMPONENT_INCLUDES)) $$(addprefix -I ,$$(COMPONENT_EXTRA_INCLUDES)) -I$(1) $$(CFLAGS) -c $$< -o $$@
 
 # CWD is build dir, create the build subdirectory if it doesn't exist
 $(1):
@@ -209,7 +217,7 @@ $(foreach srcdir,$(COMPONENT_SRCDIRS), $(eval $(call GenerateCompileTargets,$(sr
 
 ## Support for embedding binary files into the ELF as symbols
 
-OBJCOPY_EMBED_ARGS := --input-target binary --output-target elf32-xtensa-le --binary-architecture xtensa --rename-section .data=.rodata.embedded
+OBJCOPY_EMBED_ARGS := --input-target binary --output-target elf32-littlearm --binary-architecture arm --rename-section .data=.rodata.embedded
 
 # Generate pattern for embedding text or binary files into the app
 # $(1) is name of file (as relative path inside component)

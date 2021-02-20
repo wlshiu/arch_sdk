@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -
 # Copyright (c) 2019, All Rights Reserved.
 # @file    z_save_lib.sh
 # @author  Wei-Lun Hsu
@@ -25,9 +25,11 @@ dst_path=$4
 
 find ${obj_path} -type f -name ${lib_name} | xargs -i cp -f {} ${dst_path}
 header_path=$(find ${search_inc_dir} -type d -name 'include' -print | grep ${module_name}/include)
+ut_path=$(find ${search_inc_dir} -type d -name 'test' -print | grep ${module_name}/test)
 
 dst_path=$(echo ${dst_path} | sed 's/\/$//')
 
 mkdir -p ${dst_path}/${module_name}/include
 
 cp -fr ${header_path} ${dst_path}/${module_name}/
+cp -fr ${ut_path} ${dst_path}/${module_name}/

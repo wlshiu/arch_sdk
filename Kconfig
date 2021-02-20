@@ -7,19 +7,19 @@ mainmenu "SDK Configuration"
 
 menu "SDK tool configuration"
 
-    source tools/toolchain/Kconfig.toolchain
+    source "tools/toolchain/Kconfig.toolchain"
 
     config TOOLPREFIX
         string "Compiler toolchain path/prefix"
         default "arm-none-eabi-"
         ---help---
             The prefix/path that is used to call the toolchain. The default setting assumes
-            a crosstool-ng gcc setup that is in your PATH.
+            a arm-gcc setup that is in your PATH.
 
 endmenu
 
 
-source device/Kconfig.linkscript
+source "device/Kconfig.linkscript"
 
 
 menu "System configuration"
@@ -72,7 +72,7 @@ menu "System configuration"
 
 endmenu
 
-source "$COMPONENT_KCONFIGS_PROJBUILD"
+# source "$COMPONENT_KCONFIGS_PROJBUILD"
 
 menu "Post build"
     config ENABLE_COPY_TARGET
@@ -87,13 +87,25 @@ menu "Post build"
             bool "Copy output BIN file"
             default n
             ---help---
-                Copy output bin file
+                Copy bin file after compiling
+
+        config COPY_DEST_BIN_FILE_NAME
+            string "The destination bin file name of copy"
+            depends on COPY_OUTPUT_FILE_TYPE_BIN
+            ---help---
+                The destination name when cpoy bin file
 
         config COPY_OUTPUT_FILE_TYPE_ELF
             bool "Copy output ELF file"
             default n
             ---help---
-              Copy output elf file.
+              Copy elf file after compiling.
+
+        config COPY_DEST_ELF_FILE_NAME
+            string "The destination elf file name of copy"
+            depends on COPY_OUTPUT_FILE_TYPE_ELF
+            ---help---
+                The destination name when cpoy elf file
 
         config COPY_DESTINATION
             string "The destination of copy"
@@ -113,19 +125,20 @@ endmenu
 
 
 menu "Module config"
-    source "$COMPONENT_KCONFIGS"
+    # source "$COMPONENT_KCONFIGS"
+    source "middleware/Kconfig.components"
 endmenu
 
 
 menu "Device conifg"
-    source device/CMSIS/Kconfig
-    source device/Kconfig.devices
+    source "device/CMSIS/Kconfig"
+    source "device/Kconfig.devices"
 endmenu
 
 menu "Core Images"
-    source core_img/Kconfig.imgs
+    source "core_img/Kconfig.imgs"
 endmenu
 
 menu "APP config"
-    source apps/Kconfig.app
+    source "apps/Kconfig.app"
 endmenu

@@ -12,7 +12,7 @@ out_kconfig="${args[0]}/Kconfig.test"
 echo "#" > ${out_kconfig}
 echo "# Automatically generated file; DO NOT EDIT." >> ${out_kconfig}
 echo -e "#\n" >> ${out_kconfig}
-echo -e "menu \"unittest\"\n\n  if UNITTEST\n" >> ${out_kconfig}
+echo -e "menu \"unittest\"\n\n  if APP_UNITTEST\n" >> ${out_kconfig}
 
 
 module_list=()
@@ -34,4 +34,3 @@ do
 done
 
 echo -e "\n  endif\n\nendmenu" >> ${out_kconfig}
-

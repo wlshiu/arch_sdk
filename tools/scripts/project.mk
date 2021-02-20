@@ -5,8 +5,8 @@
 # together into the final file. If so, PWD is the project dir (we assume).
 #
 
-PHONY := build-components all build clean distclean info env_setup all_binaries help
-PHONY += menuconfig defconfig savedefconfig %_defconfig
+PHONY := build-components all build clean distclean clean-kconfig info env_setup all_binaries help release
+PHONY += menuconfig defconfig %_defconfig
 PHONY += docs size objdump tags TAGS cscope gtags toolchain toolchain-clean release
 PHONY += gdb gdb_server embitz qemu qemu_gdb_server qemu_gdb %-rebuild addr2line
 
@@ -59,7 +59,8 @@ help:
 	@echo "Development functions"
 	@echo "  make size                  	- List section size infomation and output *.nm file"
 	@echo "  make objdump               	- Disassemble objects and output *.objdump file"
-	@echo "  make addr2line                 - Address to line, use 'ADDRESSES' to set address"	
+	@echo "  make readelf               	- Display Section and Program header"
+	@echo "  make addr2line                 - Address to line, use 'ADDRESSES' to set address"
 	@echo "  make gdb_server            	- Start GDB server"
 	@echo "  make gdb                   	- Run GDB for development on Linux."
 	@echo ""
@@ -78,11 +79,13 @@ $(warning "Build system only supports GNU Make versions 3.81 or newer. You may s
 endif
 endif
 
-
 GAWK := $(shell command -v gawk 2> /dev/null)
 ifndef GAWK
 $(error Can not get "gawk" command. Please install git.)
 endif
+
+PYTHON := python3
+export PYTHON
 
 # disable built-in make rules, makes debugging saner
 MAKEFLAGS_OLD := $(MAKEFLAGS)
@@ -139,7 +142,8 @@ LINK_SCRIPTS_DIRS := \
 	$(srctree)/device \
 	$(srctree)/apps
 
-LINK_SCRIPTS := $(sort $(foreach devsrcdir,$(LINK_SCRIPTS_DIRS),$(wildcard $(devsrcdir)/*/*.ld)))
+LINK_SCRIPTS := $(sort $(shell find $(LINK_SCRIPTS_DIRS) -type f -name '*.lds.S' 2>/dev/null))
+# LINK_SCRIPTS := $(patsubst %.lds%, )
 export LINK_SCRIPTS
 
 # ---------------------------------------------------------------------------
@@ -168,10 +172,18 @@ export DEVICES
 IMAGE_DIRS := \
 	$(srctree)/core_img
 
-CORE_IMAGES := $(sort $(foreach imgdir,$(IMAGE_DIRS),$(wildcard $(imgdir)/*.bin)))
-CORE_IMAGES += $(sort $(foreach imgdir,$(IMAGE_DIRS),$(wildcard $(imgdir)/*.elf)))
+CORE_IMAGES := $(sort $(foreach imgdir,$(IMAGE_DIRS),$(wildcard $(imgdir)/*/*.bin)))
+CORE_IMAGES += $(sort $(foreach imgdir,$(IMAGE_DIRS),$(wildcard $(imgdir)/*/*.elf)))
 export CORE_IMAGES
 
+# ---------------------------------------------------------------------------
+# list Pre-build libraries directories
+# ---------------------------------------------------------------------------
+PRE_BUILD_ROOT := \
+	$(srctree)/middleware/prebuild
+
+PRE_BUILD_DIRS := $(sort $(foreach prebdir,$(PRE_BUILD_ROOT),$(dir $(wildcard $(prebdir)/*/Kconfig))))
+PRE_BUILD_DIRS := $(notdir $(foreach prebdir,$(PRE_BUILD_DIRS),$(lastword $(subst /, ,$(prebdir)))))
 # ---------------------------------------------------------------------------
 # Set variables common to both project & component
 # ---------------------------------------------------------------------------
@@ -197,7 +209,10 @@ KCONFIG_AUTO_FILES := \
 	$(srctree)/core_img/Kconfig.imgs \
 	$(srctree)/tools/toolchain/Kconfig.toolchain \
 	$(srctree)/apps/unittest/Kconfig.test \
+	$(srctree)/middleware/prebuild/Kconfig.prebuild \
+	$(srctree)/middleware/Kconfig.components \
 	$(srctree)/apps/Kconfig.app
+
 
 export KCONFIG_AUTO_FILES
 
@@ -209,10 +224,19 @@ env_setup:
 	$(Q)if [ ! -f $(srctree)/device/Kconfig.devices ]; then echo "GEN    Device Kconfig"; $(srctree)/tools/scripts/gen_device_kconfig.sh $(srctree)/device $(DEVICES); fi
 	$(Q)if [ ! -f $(srctree)/core_img/Kconfig.imgs ]; then echo "GEN    Images Kconfig"; $(srctree)/tools/scripts/gen_img_kconfig.sh $(srctree)/core_img $(CORE_IMAGES); fi
 	$(Q)if [ ! -f $(srctree)/apps/Kconfig.app ]; then echo "GEN    App Kconfig"; $(srctree)/tools/scripts/gen_app_kconfig.sh $(srctree)/apps $(APPS); fi
-	$(Q)if [ ! -f $(srctree)/apps/unittest/Kconfig.test ]; then echo "GEN    App Test Kconfig"; $(srctree)/tools/scripts/gen_test_kconfig.sh $(srctree)/apps/unittest $(COMPONENT_DIRS); fi
+	$(Q)if [ ! -f $(srctree)/apps/unittest/Kconfig.test ]; then echo "GEN    App Test Kconfig"; $(srctree)/tools/scripts/gen_test_kconfig.sh $(srctree)/apps/unittest $(COMPONENT_DIRS) $(srctree)/device; fi
 	$(Q)if [ ! -f $(srctree)/tools/toolchain/Kconfig.toolchain ]; then echo "GEN    Tool-chain Kconfig"; $(srctree)/tools/scripts/gen_toolchain_kconfig.sh $(srctree)/tools/toolchain $(TOOLCHAINS); fi
+	$(Q)if [ ! -f $(srctree)/middleware/prebuild/Kconfig.prebuild ]; then echo "GEN    Pre-Build Kconfig"; $(srctree)/tools/scripts/gen_prebuild_kconfig.sh $(srctree)/middleware/prebuild $(PRE_BUILD_DIRS); fi;
+	$(Q)if [ ! -f $(srctree)/middleware/Kconfig.components ]; then echo "GEN    Components Kconfig"; $(srctree)/tools/scripts/gen_comp_kconfig.sh $(srctree)/middleware $(COMPONENT_KCONFIGS); fi
+	$(Q)rm -f $(BUILD_DIR_BASE)/target.lds
+	$(Q)mkdir -p $(BUILD_DIR_BASE)/include/config
 	$(Q)mkdir -p $(BUILD_DIR_BASE)/crc
-	$(Q)$(HOSTCC) $(srctree)/tools/crc/crc32.c -o $(BUILD_DIR_BASE)/crc/calc_crc32
+	$(Q)if [ ! -f $(srctree)/tools/crc/$(HOST_ARCH)/calc_crc32 ]; then \
+		$(Q)$(HOSTCC) $(srctree)/tools/crc/crc32.c -o $(BUILD_DIR_BASE)/crc/calc_crc32; \
+	fi
+	$(Q)if [ ! -f $(BUILD_DIR_BASE)/crc/calc_crc32 ]; then \
+		$(Q)cp $(srctree)/tools/crc/$(HOST_ARCH)/calc_crc32 $(BUILD_DIR_BASE)/crc/ ; \
+	fi
 
 # ---------------------------------------------------------------------------
 # style format syntax
@@ -253,8 +277,9 @@ ifndef COMPONENTS
 # Find all component names. The component names are the same as the
 # directories they're in, so /bla/components/mycomponent/ -> mycomponent. We then use
 # COMPONENT_DIRS to build COMPONENT_PATHS with the full path to each component.
-COMPONENTS := $(foreach dir,$(COMPONENT_DIRS),$(wildcard $(dir)/*))
+COMPONENTS := $(foreach dir,$(COMPONENT_DIRS),$(shell ls -d $(dir)/*/ 2>/dev/null))
 COMPONENTS := $(sort $(foreach comp,$(COMPONENTS),$(lastword $(subst /, ,$(comp)))))
+COMPONENTS := $(filter-out include,$(COMPONENTS))
 endif
 export COMPONENTS
 
@@ -305,7 +330,20 @@ endef
 
 $(foreach idx,$(shell seq 1 ${IMG_NUM}),$(eval $(call filterConfigImgs,$(idx),IMG_FLAGS,SECTION_NAMES,ACT_IMG_NAMES)))
 IMG_FLAGS := $(subst \",,$(IMG_FLAGS))
+# ---------------------------------------------------------------------------
+# filter Pre-Build dir with CONFIG_ENABLE_PRE_BUILD_xxx
+# ---------------------------------------------------------------------------
+ACT_PRE_BUILD_DIR :=
 
+define filterPreBuildDir
+ifeq ($$(CONFIG_ENABLE_PRE_BUILD_$(1)),y)
+$(3) += $(2)
+endif
+endef
+
+$(foreach prebdir,$(PRE_BUILD_DIRS),$(eval $(call filterPreBuildDir,$(shell echo $(subst .,_,$(prebdir)) | tr a-z A-Z),$(prebdir),ACT_PRE_BUILD_DIR)))
+
+ACT_PRE_BUILD_DIR := $(strip $(ACT_PRE_BUILD_DIR))
 #===========================================================================
 
 # A component is buildable if it has a component.mk makefile in it
@@ -324,11 +362,11 @@ $(3) += $(2)
 endif
 endef
 
-ifeq ($(CONFIG_UNITTEST),y)
+ifeq ($(CONFIG_APP_UNITTEST),y)
 $(foreach comp,$(CONFIG_ENABLE_COMPONENTS),$(eval $(call filterTestCases,$(shell echo $(subst .,_,$(comp)) | tr a-z A-Z),$(comp),TEST_COMPONENTS)))
-override TEST_COMPONENTS := $(foreach comp,$(TEST_COMPONENTS),$(foreach compdir,$(COMPONENT_DIRS),$(wildcard $(compdir)/$(comp)/test)))
-TEST_COMPONENT_PATHS := $(TEST_COMPONENTS)
-TEST_COMPONENT_NAMES := $(foreach comp,$(TEST_COMPONENTS),$(lastword $(subst /, ,$(dir $(comp))))_test)
+TEST_COMPONENT_DIRS := $(COMPONENT_DIRS) $(srctree)/device
+override TEST_COMPONENT_PATHS := $(foreach comp,$(TEST_COMPONENTS),$(foreach compdir,$(TEST_COMPONENT_DIRS),$(wildcard $(compdir)/$(comp)/test)))
+TEST_COMPONENT_NAMES := $(foreach comp,$(TEST_COMPONENT_PATHS),$(lastword $(subst /, ,$(dir $(comp))))_test)
 endif
 #===========================================================================
 
@@ -375,7 +413,7 @@ UNCRUSTIFY := $(BUILD_DIR_BASE)/uncrustify/uncrustify
 export UNCRUSTIFY
 
 SYNTAX_CHECKING_DIR := \
-	$(srctree)/core_img
+	$(srctree)/private
 
 all: $(BUILD_DIR_BASE)/uncrustify/uncrustify
 ifeq ("$(CONFIG_ENABLE_SYNTAX_CHECKING)","y")
@@ -385,7 +423,7 @@ ifeq ("$(CONFIG_ENABLE_SYNTAX_CHECKING)","y")
 			rm -fr $(BUILD_DIR_BASE)/syntax; \
 		fi; \
 		mkdir -p $(BUILD_DIR_BASE)/syntax; \
-		find $(SYNTAX_CHECKING_DIR) -type f -name '*.c' -o -name '*.h' > $(BUILD_DIR_BASE)/syntax/$(UNCRUSTIFY_FILE); \
+		find $(SYNTAX_CHECKING_DIR) -type f -name '*.c' -o -name '*.h' > $(BUILD_DIR_BASE)/syntax/$(UNCRUSTIFY_FILE) 2>/dev/null; \
 		$(srctree)/tools/scripts/z_run_uncrustify.sh -r $(srctree)/tools/scripts/syntax_indent.cfg $(BUILD_DIR_BASE)/syntax/$(UNCRUSTIFY_FILE) $(BUILD_DIR_BASE)/syntax; \
 	fi; \
 	if [ $$? != 0 ]; then \
@@ -395,7 +433,7 @@ ifeq ("$(CONFIG_ENABLE_SYNTAX_CHECKING)","y")
 	fi
 	$(Q)$(srctree)/tools/scripts/z_chmod.sh
 endif
-	$(summary) $(YELLOW)"\nBuild '$(PROJECT_NAME)' Done..."$(NC)
+	$(summary) $(YELLOW)"\n### Build '$(PROJECT_NAME)' Done... ###"$(NC)
 
 toolchain:
 	$(Q)if [ ! -z $(CONFIG_TARGET_TOOLCHAIN_PATH) ] && [ ! -d $(srctree)/tools/toolchain/active ]; then \
@@ -408,30 +446,39 @@ toolchain-clean:
 	$(summary) "remove active toolchain"
 	@rm -fr $(srctree)/tools/toolchain/active
 
-# Set CPU options
-CPU_FLAGS := -marm -mlittle-endian -mthumb -mcpu=cortex-m4 -march=armv7e-m
+
+COMPONENT_LDFLAGS += -L$(srctree)/middleware/prebuild/$(ACT_PRE_BUILD_DIR)
+COMPONENT_LDFLAGS += $(foreach plib,$(notdir $(wildcard $(srctree)/middleware/prebuild/$(ACT_PRE_BUILD_DIR)/*.a)),$(addprefix -l,$(subst lib,,$(basename $(plib)))))
 
 # Set default LDFLAGS
 LDFLAGS ?= \
 	$(addprefix -L$(BUILD_DIR_BASE)/,$(COMPONENTS) $(DEVICES) $(TEST_COMPONENT_NAMES)) \
 	$(addprefix -L$(BUILD_DIR_BASE)/,$(PROJECT_NAME) ) \
 	$(EXTRA_LDFLAGS) \
-	-specs=nosys.specs \
-	-Wl,--gc-sections	\
+	-Wl,--gc-sections \
 	-Wl,-static	\
 	-Wl,--start-group	\
 	$(COMPONENT_LDFLAGS) \
 	-Wl,--end-group \
 	-Wl,-EL
 
-LDFLAGS += -lc -lm -lnosys $(CPU_FLAGS)
-LDFLAGS += -T$(CONFIG_TARGET_LD_FILE)
-LDFLAGS += -L$(srctree)/middleware/prebuild
-LDFLAGS += $(foreach plib,$(notdir $(wildcard $(srctree)/middleware/prebuild/*.a)),$(addprefix -l,$(subst lib,,$(basename $(plib)))))
+# Set CPU options
+CPU_FLAGS := -mlittle-endian
+THUMB_FLAGS := -mthumb -mthumb-interwork
 
-# LDFLAGS += -nostartfiles
-# LDFLAGS += -nostdlib -lstdc++ -lgcc
-# LDFLAGS += -u call_user_start_cpu0
+ifeq ("$(CONFIG_CPU_ARM_CM4)","y")
+CPU_FLAGS += -mcpu=cortex-m4+nofp -march=armv7e-m
+LDFLAGS += -lc -lm -specs=nosys.specs -lnosys $(CPU_FLAGS) $(THUMB_FLAGS)
+
+else ifeq ("$(CONFIG_CPU_ARM_CM0)","y")
+CPU_FLAGS += -mcpu=cortex-m0 -march=armv6-m
+LDFLAGS += -lc -lm  -specs=nosys.specs -lnosys $(CPU_FLAGS) $(THUMB_FLAGS)
+
+else ifeq ("$(CONFIG_CPU_ARM9_FA606TE)","y")
+CPU_FLAGS += -mcpu=fa606te -march=armv5te -mtune=fa606te
+LDFLAGS += $(CPU_FLAGS) -static -static-libgcc -nostartfiles
+endif
+
 
 # Set default CPPFLAGS, CFLAGS, CXXFLAGS
 # These are exported so that components can use them when compiling.
@@ -465,15 +512,17 @@ COMMON_FLAGS = \
 # COMMON_FLAGS += -mlongcalls
 
 # Optimization flags are set based on menuconfig choice
+ifeq ("$(CONFIG_CPU_ARM9_FA606TE)","y")
+COMMON_FLAGS += -fno-strict-aliasing -fno-exceptions
+endif   # ifeq ("$(CONFIG_CPU_ARM9_FA606TE)","y")
+
 ifneq ("$(CONFIG_OPTIMIZATION_LEVEL_RELEASE)","")
-OPTIMIZATION_FLAGS = -Os
+OPTIMIZATION_FLAGS = -O$(CONFIG_OPTIMIZATION_LEVEL)
 CPPFLAGS += -DNDEBUG
 else
-OPTIMIZATION_FLAGS = -Og
+## Enable generation of debugging symbols
+OPTIMIZATION_FLAGS = -Og -ggdb
 endif
-
-# Enable generation of debugging symbols
-OPTIMIZATION_FLAGS += -ggdb
 
 # List of flags to pass to C compiler
 # If any flags are defined in application Makefile, add them at the end.
@@ -504,7 +553,7 @@ CXXFLAGS := $(strip \
 
 OBJCOPY_FLAGS := -O binary
 
-export CFLAGS CPPFLAGS CXXFLAGS OBJCOPY_FLAGS
+export CFLAGS CPPFLAGS CXXFLAGS OBJCOPY_FLAGS THUMB_FLAGS
 
 # Set host compiler and binutils
 HOSTCC := gcc
@@ -523,10 +572,12 @@ LD := $(call dequote,$(CONFIG_TOOLPREFIX))ld
 AR := $(call dequote,$(CONFIG_TOOLPREFIX))ar
 OBJCOPY := $(call dequote,$(CONFIG_TOOLPREFIX))objcopy
 OBJDUMP := $(call dequote,$(CONFIG_TOOLPREFIX))objdump
+READELF := $(call dequote,$(CONFIG_TOOLPREFIX))readelf
 SIZE := $(call dequote,$(CONFIG_TOOLPREFIX))size
 NM := $(call dequote,$(CONFIG_TOOLPREFIX))nm
 STRIP := $(call dequote,$(CONFIG_TOOLPREFIX))strip
 GDB := $(call dequote,$(CONFIG_TOOLPREFIX))gdb
+ADDR2LINE := $(call dequote,$(CONFIG_TOOLPREFIX))addr2line
 
 CC := $(TOOLCHAIN_PATH)$(CC)
 CXX := $(TOOLCHAIN_PATH)$(CXX)
@@ -534,11 +585,13 @@ LD := $(TOOLCHAIN_PATH)$(LD)
 AR := $(TOOLCHAIN_PATH)$(AR)
 OBJCOPY := $(TOOLCHAIN_PATH)$(OBJCOPY)
 OBJDUMP := $(TOOLCHAIN_PATH)$(OBJDUMP)
+READELF := $(TOOLCHAIN_PATH)$(READELF)
 SIZE := $(TOOLCHAIN_PATH)$(SIZE)
 NM := $(TOOLCHAIN_PATH)$(NM)
 STRIP := $(TOOLCHAIN_PATH)$(STRIP)
 GDB := $(TOOLCHAIN_PATH)$(GDB)
-export CC CXX LD AR OBJCOPY SIZE OBJDUMP NM GDB STRIP
+ADDR2LINE := $(TOOLCHAIN_PATH)$(ADDR2LINE)
+export CC CXX LD AR OBJCOPY SIZE OBJDUMP NM GDB STRIP ADDR2LINE
 
 # TODO: python
 # PYTHON=$(call dequote,$(CONFIG_PYTHON))
@@ -577,12 +630,33 @@ COMPONENT_LIBRARIES = $(filter $(notdir $(COMPONENT_PATHS_BUILDABLE)) $(TEST_COM
 #
 # also depends on additional dependencies (linker scripts & binary libraries)
 # stored in COMPONENT_LINKER_DEPS, built via component.mk files' COMPONENT_ADD_LINKER_DEPS variable
-$(APP_ELF_ORG): $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/lib$(libcomp).a) $(COMPONENT_LINKER_DEPS)
+$(APP_ELF_ORG): $(foreach libcomp,$(COMPONENT_LIBRARIES),$(BUILD_DIR_BASE)/$(libcomp)/lib$(libcomp).a) $(COMPONENT_LINKER_DEPS) $(BUILD_DIR_BASE)/target.lds
 	$(summary) $(GREEN)  LD $(notdir $@) $(NC)
-	$(Q)$(srctree)/tools/scripts/z_verify_prebuild_lib.sh $(srctree)/middleware/prebuild $(srctree)/tools/crc/calc_crc.sh $(BUILD_DIR_BASE)/crc
-	$(CC) $(LDFLAGS) -o $@ -Wl,-Map=$(APP_MAP)
+	$(Q)$(srctree)/tools/scripts/z_verify_prebuild_lib.sh $(srctree)/middleware/prebuild/$(ACT_PRE_BUILD_DIR) $(srctree)/tools/crc/calc_crc.sh $(BUILD_DIR_BASE)/crc
+	$(CC) $(LDFLAGS) -T$(BUILD_DIR_BASE)/target.lds -o $@ -Wl,-Map=$(APP_MAP)
+
+
+CONFIG_TARGET_LD_FILE := $(subst \",,$(CONFIG_TARGET_LD_FILE))
+
+$(BUILD_DIR_BASE)/target.lds:
+	$(CC) -E -P \
+	-I$(BUILD_DIR_BASE)/include \
+	-include $(BUILD_DIR_BASE)/include/autoconfig.h \
+	$(CONFIG_TARGET_LD_FILE) > $(BUILD_DIR_BASE)/target.lds
+
+COPY_DEST_BIN_PATH := $(srctree)/$(CONFIG_COPY_DESTINATION)/$(PROJECT_NAME).bin
+COPY_DEST_ELF_PATH := $(srctree)/$(CONFIG_COPY_DESTINATION)/$(PROJECT_NAME).elf
+
+ifneq ("$(CONFIG_COPY_DEST_BIN_FILE_NAME)","")
+COPY_DEST_BIN_PATH := $(srctree)/$(CONFIG_COPY_DESTINATION)/$(CONFIG_COPY_DEST_BIN_FILE_NAME)
+endif
+
+ifneq ("$(CONFIG_COPY_DEST_ELF_FILE_NAME)","")
+COPY_DEST_ELF_PATH := $(srctree)/$(CONFIG_COPY_DESTINATION)/$(CONFIG_COPY_DEST_ELF_FILE_NAME)
+endif
 
 $(APP_BIN): $(APP_ELF_ORG)
+	$(summary) ""
 	$(summary) $(YELLOW) "Post Build Steps ................."$(NC)
 	@$(OBJCOPY) $(IMG_FLAGS) $(APP_ELF_ORG) $(APP_ELF)
 	$(summary) $(GREEN) " Insert section: $(SECTION_NAMES)"$(NC)
@@ -590,14 +664,20 @@ $(APP_BIN): $(APP_ELF_ORG)
 	@$(OBJCOPY) $(OBJCOPY_FLAGS) $< $@
 	$(summary) ""
 ifeq ("$(CONFIG_COPY_OUTPUT_FILE_TYPE_BIN)","y")
-	$(summary) $(BWHITE) " Copy '$(APP_BIN)' to \n\t $(srctree)/$(CONFIG_COPY_DESTINATION)"$(NC)
-	$(Q)cp -f $(APP_BIN) $(srctree)/$(CONFIG_COPY_DESTINATION)
+	$(summary) $(BWHITE) " Copy '$(APP_BIN)' to \n\t $(COPY_DEST_BIN_PATH)"$(NC)
+	$(Q)cp -f $(APP_BIN) $(COPY_DEST_BIN_PATH)
+	$(Q)-rm -f $(srctree)/core_img/Kconfig.imgs
 endif
 ifeq ("$(CONFIG_COPY_OUTPUT_FILE_TYPE_ELF)","y")
-	$(summary) $(BWHITE) " Copy '$(APP_ELF)' to \n\t$(srctree)/$(CONFIG_COPY_DESTINATION)"$(NC)
+	$(summary) $(BWHITE) " Copy '$(APP_ELF)' to \n\t $(COPY_DEST_ELF_PATH)"$(NC)
 	@$(OBJCOPY) -S -I elf32-little -R .comment -R .xtensa.info $(APP_ELF) $(APP_ELF).lite
-	$(Q)cp -f $(APP_ELF).lite $(srctree)/$(CONFIG_COPY_DESTINATION)/$(PROJECT_NAME).elf
+	$(Q)cp -f $(APP_ELF).lite $(COPY_DEST_ELF_PATH)
+	$(Q)-rm -f $(srctree)/core_img/Kconfig.imgs
 endif
+	$(summary) ""
+	$(summary) $(GREEN) " Size Info:"$(NC)
+	$(SIZE) -B -d $(APP_ELF)
+	$(summary) ""
 
 
 # Generation of $(APP_BIN) from $(APP_ELF) is added by the esptool
@@ -611,15 +691,15 @@ all_binaries: toolchain $(APP_BIN)
 $(BUILD_DIR_BASE):
 	mkdir -p $(BUILD_DIR_BASE)
 
-
 # Macro for the recursive sub-make for each component
 # $(1) - component directory
 # $(2) - component name only
 #
 # Is recursively expanded by the GenerateComponentTargets macro
 define ComponentMake
-+$(MAKE) -C $(BUILD_DIR_BASE)/$(2) -f $(srctree)/tools/scripts/component_wrapper.mk COMPONENT_MAKEFILE=$(1)/component.mk COMPONENT_NAME=$(2) GIT_SHA1=$(shell $(srctree)/tools/scripts/z_get_git_sha1.sh $(1))
++$(MAKE) -C $(BUILD_DIR_BASE)/$(2) -f $(srctree)/tools/scripts/component_wrapper.mk COMPONENT_MAKEFILE=$(1)/component.mk COMPONENT_NAME=$(2) GIT_SHA1_ID=$(shell $(srctree)/tools/scripts/z_get_git_sha1.sh $(1))
 endef
+
 
 # Generate top-level component-specific targets for each component
 # $(1) - path to component dir
@@ -629,7 +709,7 @@ define GenerateComponentTargets
 PHONY += $(2)-build $(2)-clean $(2)-doxyobj
 
 $(2)-build:
-	$(summary) $(YELLOW) build $(2) sha1:$(shell $(srctree)/tools/scripts/z_get_git_sha1.sh $(1)) $(NC)
+	$(summary) $(YELLOW)">>> build $(2) sha1:$(shell $(srctree)/tools/scripts/z_get_git_sha1.sh $(1))" $(NC)
 	$(call ComponentMake,$(1),$(2)) build
 
 $(2)-clean:
@@ -663,7 +743,6 @@ endef
 
 $(foreach component,$(COMPONENT_PATHS_BUILDABLE),$(eval $(call GenerateComponentTargets,$(component),$(notdir $(component)))))
 $(foreach component,$(TEST_COMPONENT_PATHS),$(eval $(call GenerateComponentTargets,$(component),$(lastword $(subst /, ,$(dir $(component))))_test)))
-
 
 app-clean:
 	$(summary) $(GREEN) "clean $(PROJECT_NAME)" $(NC)
@@ -746,6 +825,13 @@ objdump: toolchain $(APP_BIN)
 	$(summary) $(YELLOW) "Objects Dump to $(APP_OBJDUMP)"$(NC)
 	$(OBJDUMP) -Sx $(APP_ELF) > $(APP_OBJDUMP)
 
+readelf: toolchain $(APP_BIN)
+	$(summary)""
+	$(READELF) -lS $(APP_ELF)
+
+ifndef ADDRESSES
+ADDRESSES :=
+endif
 
 addr2line: $(APP_ELF)
 ifeq ("$(ADDRESSES)","")
@@ -819,7 +905,10 @@ release: $(APP_ELF)
 
 # NB: this ordering is deliberate (app-clean before config-clean),
 # so config remains valid during all component clean targets
-config-clean: clean
+clean-kconfig:
+	rm -f $(KCONFIG_AUTO_FILES)
+
+clean-config: clean
 clean: $(addsuffix -clean,$(notdir $(COMPONENT_PATHS_BUILDABLE)))
 	$(MAKE) -C $(BUILD_DIR_BASE)/$(PROJECT_NAME) -f $(srctree)/tools/scripts/component_wrapper.mk COMPONENT_MAKEFILE=$(srctree)/apps/$(PROJECT_NAME)/component.mk COMPONENT_NAME=$(PROJECT_NAME) clean
 	$(summary) RM $(APP_ELF) $(APP_BIN)

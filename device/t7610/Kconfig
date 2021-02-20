@@ -85,11 +85,11 @@ menu "t7610"
     endchoice
 
     if T7610_FPGA
-        source device/t7610/bsp/fpga/Kconfig
+        source "device/t7610/bsp/fpga/Kconfig"
     endif
 
     if T7610_EVB
-        source device/t7610/bsp/evb/Kconfig
+        source "device/t7610/bsp/evb/Kconfig"
     endif
 
     if CPU_ARM_CM4
@@ -108,6 +108,6 @@ menu "t7610"
 
     endif
 
-    source device/t7610/test/Kconfig
+    source "device/t7610/test/Kconfig"
 
 endmenu

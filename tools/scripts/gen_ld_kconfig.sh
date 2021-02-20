@@ -17,7 +17,7 @@ echo "menu \"Link-Script Configuration\"" >> ${out_kconfig}
 
 echo "choice TARGET_LD_FILE" >> ${out_kconfig}
 echo "  prompt \"Target Link Script\"" >> ${out_kconfig}
-echo "  default LD_FILE_CMSIS_GCC_ARM" >> ${out_kconfig}
+# echo "  default LD_FILE_CMSIS_GCC_ARM" >> ${out_kconfig}
 echo "  ---help---" >> ${out_kconfig}
 echo "      Select the target link script." >> ${out_kconfig}
 echo -e "\n" >> ${out_kconfig}
@@ -27,6 +27,7 @@ do
     parentdir=$(dirname ${args[$i]} | sed 's,^\(.*/\)\?\([^/]*\),\2,')
     filename=$(basename -- "${args[$i]}")
     filename=${filename%.*}
+    filename=$(echo ${filename} | sed 's:\.:_:g')
     description=$(echo ${args[$i]} | sed 's:'"${srctree}"/'::g')
 
     echo -e "config LD_FILE_${parentdir^^}_${filename^^}" >> ${out_kconfig}
@@ -42,7 +43,7 @@ echo -e "config TARGET_CUSTOMER_LD_FILE" >> ${out_kconfig}
 echo -e "  string \"Custom link script file\" if LD_FILE_CUSTOMER" >> ${out_kconfig}
 echo -e "  default \"\"" >> ${out_kconfig}
 echo -e "  ---help---" >> ${out_kconfig}
-echo -e "    e.g. xx/xxx.ld\n" >> ${out_kconfig}
+echo -e "    e.g. xx/xxx.lds.S\n" >> ${out_kconfig}
 
 echo "config TARGET_LD_FILE" >> ${out_kconfig}
 echo "  string" >> ${out_kconfig}
@@ -52,6 +53,7 @@ do
     parentdir=$(dirname ${args[$i]} | sed 's,^\(.*/\)\?\([^/]*\),\2,')
     filename=$(basename -- "${args[$i]}")
     filename=${filename%.*}
+    filename=$(echo ${filename} | sed 's:\.:_:g')
     echo "  default \"${args[$i]}\" if LD_FILE_${parentdir^^}_${filename^^}" >> ${out_kconfig}
 done
 

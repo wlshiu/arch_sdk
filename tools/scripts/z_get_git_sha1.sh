@@ -1,6 +1,6 @@
 #!/bin/bash -
 # Copyright (c) 2019, All Rights Reserved.
-# @file    release_sdk.sh
+# @file    z_get_git_sha1.sh
 # @author  Wei-Lun Hsu
 # @version 0.1
 

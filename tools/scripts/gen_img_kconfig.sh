@@ -22,16 +22,17 @@ echo "" >> ${out_kconfig}
 
 for ((i = 1 ; i < $# ; i++));
 do
-    filename=$(basename -- "${args[$i]}")
+    relative_path=$(echo ${args[$i]} | sed 's:'"${args[0]}/"'::g')
+    # filename=$(basename -- "${args[$i]}")
 
     echo -e "config INSERT_CORE_IMAGE_$i" >> ${out_kconfig}
-    echo -e "  bool \"Insert core image $i - ${filename}\"" >> ${out_kconfig}
+    echo -e "  bool \"Insert core image $i - ${relative_path}\"" >> ${out_kconfig}
     echo -e "  default n\n" >> ${out_kconfig}
 
     echo -e "  config IMAGE_NAME_$i" >> ${out_kconfig}
     echo -e "    string \"image path\"" >> ${out_kconfig}
     echo -e "    depends on INSERT_CORE_IMAGE_$i" >> ${out_kconfig}
-    echo -e "    default \"${filename}\"\n" >> ${out_kconfig}
+    echo -e "    default \"${relative_path}\"\n" >> ${out_kconfig}
 
     echo -e "  config SECTION_NAME_$i" >> ${out_kconfig}
     echo -e "    string \"section name\"" >> ${out_kconfig}

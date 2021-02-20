@@ -3,4 +3,4 @@
 # see doc/kconfig-language.txt.
 #
 
-source apps/unittest/Kconfig.test
+source "apps/unittest/Kconfig.test"

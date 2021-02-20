@@ -50,7 +50,6 @@ typedef enum scu_mmp_type
 //=============================================================================
 //                  Structure Definition
 //=============================================================================
-#if defined(CONFIG_CHIP_ALIAS_PHOENIX)
 /**
  *  reset flag
  */
@@ -99,7 +98,6 @@ typedef struct scu_sw_strap
     volatile uint32_t   sw_strap_type  : 1;     /*!< Software applicaiotn according to H/w or S/w reset */
 
 } scu_sw_strap_t;
-#endif
 
 typedef struct scu_call
 {

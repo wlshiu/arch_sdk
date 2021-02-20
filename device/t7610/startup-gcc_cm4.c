@@ -75,7 +75,7 @@ extern void _start     (void) __attribute__((noreturn)); /* PreeMain (C library 
 /*----------------------------------------------------------------------------
   Internal References
  *----------------------------------------------------------------------------*/
-void Default_Handler(void) __attribute__ ((noreturn));
+void Default_Handler(void); // __attribute__ ((noreturn));
 void Reset_Handler  (void) __attribute__ ((noreturn));
 
 

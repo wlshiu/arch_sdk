@@ -51,6 +51,5 @@ find . -name '*.sh' -not -path '*/tools/toolchain/*' -not -path '*/tools/uncrust
 
 find . -name '*.py' -not -path '*/tools/toolchain/*' -not -path '*/tools/uncrustify/*' -not -path '*/out/*' -not -path '*/.repo/*' -not -path '*/.git/*' -exec chmod +x {} \;
 
-
 rm -f ${file_list_1}
 rm -f ${file_list_2}

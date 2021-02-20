@@ -14,15 +14,15 @@ echo "# Automatically generated file; DO NOT EDIT." >> ${out_kconfig}
 echo "#" >> ${out_kconfig}
 echo "choice" >> ${out_kconfig}
 echo "  prompt \"Target App\"" >> ${out_kconfig}
-echo "  default HELLO_WORLD" >> ${out_kconfig}
+echo "  default APP_HELLO_WORLD" >> ${out_kconfig}
 echo "  ---help---" >> ${out_kconfig}
 echo "      Select the target application." >> ${out_kconfig}
 echo "" >> ${out_kconfig}
 
 for ((i = 1 ; i < $# ; i++));
 do
-    echo -e "config ${args[$i]^^}" >> ${out_kconfig}
-    echo -e "  bool \"${args[$i]}\"\n" >> ${out_kconfig}
+    echo -e "  config APP_${args[$i]^^}" >> ${out_kconfig}
+    echo -e "    bool \"${args[$i]}\"\n" >> ${out_kconfig}
 done
 
 echo "endchoice" >> ${out_kconfig}
@@ -33,7 +33,7 @@ echo "  string" >> ${out_kconfig}
 
 for ((i = 1 ; i < $# ; i++));
 do
-    echo "  default ${args[$i]} if ${args[$i]^^}" >> ${out_kconfig}
+    echo "  default \"${args[$i]}\" if APP_${args[$i]^^}" >> ${out_kconfig}
 done
 
 echo "" >> ${out_kconfig}
@@ -43,8 +43,8 @@ for ((i = 1 ; i < $# ; i++));
 do
     kconfig_path=$(find ${args[0]}/${args[$i]} -name "Kconfig")
     if [ ! -z ${kconfig_path} ]; then
-        echo -e "if ${args[$i]^^}" >> ${out_kconfig}
-        echo -e "  source ${kconfig_path}" >> ${out_kconfig}
+        echo -e "if APP_${args[$i]^^}" >> ${out_kconfig}
+        echo -e "  source \"${kconfig_path}\"" >> ${out_kconfig}
         echo -e "endif\n" >> ${out_kconfig}
     fi
 done

@@ -92,4 +92,5 @@ gen_mk
 
 if [ ! -d include ]; then
     mkdir include
+    echo -e "" > include/gitkeep
 fi

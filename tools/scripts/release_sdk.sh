@@ -18,6 +18,8 @@ root_dir=$1
 out_dir=$2
 out_name=$3
 save_lib_sh=$4
+prebuild_dir=$5
+config_prefix=$6
 cur_dir=`pwd`
 
 datetime=$(date '+%Y%m%d-%H_%M_%S')
@@ -30,9 +32,11 @@ ignore_list=(
 'Kconfig.test'
 'Kconfig.imgs'
 'Kconfig.app'
+'Kconfig.prebuild'
+'autoconfig'
 '**.o'
 '**.d'
-'**.exe'
+# '**.exe'
 'GPATH'
 'GRTAGS'
 'GTAGS'
@@ -49,7 +53,6 @@ remove_list=(
 'README.md'
 'middleware/prebuild/README.md'
 'configs/README.md'
-'fw_img/hplc/README.md'
 'tools/scripts/kconfig/conf'
 'tools/scripts/kconfig/mconf'
 )
@@ -92,7 +95,7 @@ sed -i 's/'"${patt}"'/./g' ${pack_list}
 
 cat ${pack_list} | ${CPIO} -pd ${out_dir}/release/${out_name}
 
-find ${out_dir}/release/${out_name}/device -type f ! -path '*/CMSIS/*' ! -name '*.ld' -exec rm -f {} \;
+find ${out_dir}/release/${out_name}/device -type f ! -path '*/CMSIS/*' ! -name '*.lds*' ! -name '*.release' -exec rm -f {} \;
 
 for pattern in "${remove_list[@]}"; do
     rm -f ${out_dir}/release/${out_name}/${pattern}
@@ -101,21 +104,28 @@ done
 rm -f ${tmp_list_1}
 rm -f ${pack_list}
 
-mkdir -p ${out_dir}/release/${out_name}/configs
-find ${out_dir}/release/${out_name}/apps -type f -name '*_defconfig' -exec cp -f {} ${out_dir}/release/${out_name}/configs \;
+mkdir -p ${out_dir}/release/${out_name}/configs/
 
+find ${root_dir}/apps -type f -name "${config_prefix}*_defconfig" -exec cp -f {} ${out_dir}/release/${out_name}/configs/ \;
 find ${out_dir}/release/${out_name}/ -empty -type d -delete
 
-mkdir -p ${out_dir}/release/${out_name}/middleware/prebuild
-for ((i = 4 ; i < $# ; i++));
+mkdir -p ${out_dir}/release/${out_name}/middleware/prebuild/${prebuild_dir}
+for ((i = 6 ; i < $# ; i++));
 do
     lib_name=$(echo ${args[$i]} | xargs basename)
     if [ "${lib_name}" = "CMSIS" ]; then
         continue
     fi
 
-    bash ${save_lib_sh} ${lib_name} ${args[$i]} ${out_dir} ${out_dir}/release/${out_name}/middleware/prebuild
+    bash ${save_lib_sh} ${lib_name} ${args[$i]} ${out_dir} ${out_dir}/release/${out_name}/middleware/prebuild/${prebuild_dir}
+
+    for k in $(find ${out_dir}/release/${out_name} -type f -name 'Kconfig.release' -print | grep /${lib_name}/); do
+        dest_path=$(echo $k | sed 's:'"/${lib_name}/"': :' | awk '{print $2}' | sed "s/Kconfig\.release/Kconfig/")
+        cp -f $k ${out_dir}/release/${out_name}/middleware/prebuild/${prebuild_dir}/${lib_name}/${dest_path}
+    done
 done
+
+find ${out_dir}/release/${out_name}/device -type f -name '*.lds*' -exec cp -f {} ${out_dir}/release/${out_name}/middleware/prebuild/${prebuild_dir} \;
 
 echo -e "${Yellow} Pack SDK to ${out_dir}/release ${NC}"
 cd ${out_dir}/release
