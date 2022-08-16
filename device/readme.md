@@ -1,2 +1,0 @@
-ASIC type
----

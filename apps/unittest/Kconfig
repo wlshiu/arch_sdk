@@ -1,6 +1,0 @@
-#
-# For a description of the syntax of this configuration file,
-# see doc/kconfig-language.txt.
-#
-
-source "apps/unittest/Kconfig.test"

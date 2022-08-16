@@ -1,3 +1,0 @@
-/// <summary>
-/// 	Event handler.
-/// </summary>

@@ -1,7 +1,0 @@
-#
-# Ignore components
-# There are self repositories for components
-# e.g. [component-name]/**/*.*
-#
-
-fatfs/**/*.*
