@@ -55,7 +55,7 @@ endif
 
 # Project path
 ifeq ("$(P)","")
-PROJ = Project
+PROJ = Templates
 else
 PROJ = $(P)
 endif
@@ -153,7 +153,7 @@ include $(srctree)/Drivers/component.mk
 
 C_SOURCES +=
 
-include $(srctree)/$(PROJ)/component.mk
+include $(srctree)/Projects/component.mk
 
 # ASM sources
 # ASM_SOURCES = startup_stm32f072xb.S

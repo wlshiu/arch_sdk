@@ -8,6 +8,7 @@ Design a tiny architecture of SDK.
 
 # ToDo
 
++ Qemu
 
 # Reference
 * [qemu-system-gnuarmeclipse](https://github.com/xpack-dev-tools/qemu-arm-xpack/releases/)
