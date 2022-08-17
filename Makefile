@@ -149,11 +149,11 @@ export LDFLAGS LDSCRIPT LIBS
 # source
 ######################################
 # C sources
-include $(srctree)/Drivers/component.mk
+include $(srctree)/Drivers/drivers.mk
 
 C_SOURCES +=
 
-include $(srctree)/Projects/component.mk
+include $(srctree)/Projects/projects.mk
 
 # ASM sources
 # ASM_SOURCES = startup_stm32f072xb.S

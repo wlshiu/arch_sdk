@@ -2,14 +2,7 @@
 # component Makefile
 #
 
-
-ifeq ("$(CHIP)","STM32F072xB")
-## STM32F072xB
-C_DEFS += -DSTM32F072xB
-
-
 C_SOURCES := \
-    $(srctree)/Drivers/CMSIS/Device/ST/STM32F0xx/Source/gcc/startup_stm32f072xb.c  \
     $(srctree)/Drivers/CMSIS/Device/ST/STM32F0xx/Source/gcc/syscalls.c             \
     $(srctree)/Drivers/CMSIS/Device/ST/STM32F0xx/Source/system_stm32f0xx.c
 
@@ -56,15 +49,27 @@ C_SOURCES +=  \
     $(srctree)/Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_usart.c          \
     $(srctree)/Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_usart_ex.c       \
     $(srctree)/Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_wwdg.c           \
-    $(srctree)/Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_ll_usb.c             \
-    $(srctree)/Drivers/BSP/STM32072B_EVAL/stm32072b_eval.c
+    $(srctree)/Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_ll_usb.c
 
 
 C_INCLUDES += \
     -I$(srctree)/Drivers/CMSIS/Device/ST/STM32F0xx/Include \
-    -I$(srctree)/Drivers/STM32F0xx_HAL_Driver/Inc \
-    -I$(srctree)/Drivers/BSP/STM32072B_EVAL
+    -I$(srctree)/Drivers/STM32F0xx_HAL_Driver/Inc
 
+
+CFLAGS +=
+CXXFLAGS +=
+LDLAGS +=
+
+ifeq ("$(CHIP)","STM32F072xB")
+## STM32F072xB
+C_DEFS += -DSTM32F072xB
+
+C_SOURCES += \
+	$(srctree)/Drivers/CMSIS/Device/ST/STM32F0xx/Source/gcc/startup_stm32f072xb.c \
+	$(srctree)/Drivers/BSP/STM32072B_EVAL/stm32072b_eval.c
+
+C_INCLUDES += -I$(srctree)/Drivers/BSP/STM32072B_EVAL
 
 else
 ## Unknown
@@ -73,7 +78,4 @@ endif
 
 
 
-CFLAGS +=
-CXXFLAGS +=
-LDLAGS +=
 
